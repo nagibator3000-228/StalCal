@@ -9,37 +9,66 @@ from ursina.prefabs.first_person_controller import FirstPersonController
 sio = socketio.Client()
 sio.connect('https://stalker-server-z2l9.onrender.com', transports=['websocket'])
 
-
 other_players = {}
 tutorial = False
+
+max_bullets = 0
 
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
 
     tutorial = JSON_settings["game_settings"]["tutorial"]
+    max_bullets = JSON_settings["game_settings"]["max_bullets"]
 
 @sio.event
 def update_players(data):
-    global other_players, tutorial
+    global other_players
+    for sid, pos in data.items():
+        if sid == sio.sid:   # себя не рисуем
+            continue
+        if sid not in other_players:
+            other_players[sid] = Entity(
+                model='assets/models/stalker.glb',
+                scale=2,
+                collider='box'
+            )
+        other_players[sid].position = Vec3(pos['x'], pos['y'] + 2.4, pos['z'])
+        other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
-    if tutorial:
-        for sid, pos in data.items():
-            if sid == sio.sid:
-                continue
-            if sid not in other_players:
-                other_players[sid] = Entity(
-                    model='assets/models/stalker.glb',
-                    scale=3.4,
-                    collider='box',
-                    position=Vec3(pos['x'], pos['y'] + 2, pos['z']),
-                    rotation_y=pos.get('ry',0)+180
-                )
-            else:
-                other_players[sid].position = Vec3(pos['x'], pos['y'] + 2, pos['z'])
-                other_players[sid].rotation_y = pos.get('ry',0)+180
-            if sid not in data:
-                other_players[sid].disable()
-                del other_players[sid]
+
+@sio.event
+def new_player(data):
+    """Когда появляется новый игрок"""
+    sid = data['sid']
+    if sid != sio.sid and sid not in other_players:
+        other_players[sid] = Entity(
+            model='assets/models/stalker.glb',
+            scale=2,
+            collider='box'
+        )
+        other_players[sid].position = Vec3(data['x'], data['y'] + 2.4, data['z'])
+        other_players[sid].rotation_y = data.get('ry', 0) + 180
+
+
+@sio.event
+def move(data):
+    sid = data['sid']
+    if sid in other_players:
+        other_players[sid].position = Vec3(data['x'], data['y'] + 2.4, data['z'])
+        other_players[sid].rotation_y = data.get('ry', 0) + 180
+
+
+@sio.event
+def remove_player(sid):
+    if sid in other_players:
+        destroy(other_players[sid])
+        del other_players[sid]
+
+
+@sio.event
+def disconnect():
+    print("❌ Отключились от сервера")
+
 
 @sio.event
 def disconnect():
@@ -52,9 +81,9 @@ def connect():
 
 app = Ursina()
 
-fog = 0
-speed = 12
-forest = False
+fog = 0.5
+speed = 6
+forest = True
 max_recoil = 120
 recoil_per_shot = 6
 recoil_recovery_speed = 14
@@ -65,7 +94,6 @@ fire_rate = 0.14
 last_shot_time = 0
 magazine_size = 0
 magazine = magazine_size
-max_bullets = 0
 
 scope = False
 
@@ -105,6 +133,9 @@ field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parrent
 first_stalker_house = Entity(model='assets/models/stalker_house.glb', scale=1.1, enabled=False)
 first_stalker_house_collider = Entity(model='assets/models/stalker_house.glb', alpha=0, collider='mesh', rotation=Vec3(90, -90, 90), parent=first_stalker_house, x=-.9145,y=2.402, z=-0.265)
 
+Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(37, 3.4, -40), rotation_y=90)
+Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(37, 2.2, 24), rotation_y=90)
+
 big_metal_door = Entity(model='assets/models/big_metal_door.glb', collider='box', scale=3.7, position=Vec3(46.76389, 1.9, -25.409944), enabled=False)
 
 def settings():
@@ -113,7 +144,7 @@ def settings():
     sky = Sky(texture='sky_sunset')
 
     scene.fog_color = color.black
-    scene.fog_density = fog + 0.05
+    scene.fog_density = fog + 0.04
 
     window.fullscreen = False
     window.entity_counter.enabled = False
@@ -153,8 +184,21 @@ ammo_text = Text(
     color=color.white
 )
 
-ammo_9m = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box')
-pistol = Entity(parent=scene, model='assets/models/pm.glb', origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104)
+ammo_9m = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
+pistol = Entity(parent=scene, model='assets/models/pm.glb', origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104, enabled=False)
+
+if tutorial and JSON_settings["game_settings"]["weapon"] == None:
+    ammo_9m.enabled = True
+    pistol.enabled = True
+elif tutorial and JSON_settings["game_settings"]["weapon"] == 'pm':
+    pistol.enabled = True
+    pistol.parent = camera
+    pistol.collider = None
+    pistol.position = Vec3(.5,-.24,.5)
+    pistol.rotation = Vec3(0, 86, -1)
+    magazine_size = 12
+    magazine = JSON_settings["game_settings"]["magazine"]
+    speed -= 0.4
 
 first_door_key = Entity(model='assets/models/door_key.glb', scale=.01, collider='box', position=Vec3(-28.65, 2, 13.), parent=scene, enabled=True)
 first_door_key.shader = lit_with_shadows_shader
@@ -170,7 +214,6 @@ def get_first_door_key():
     first_door_key.position = Vec3(.5,-.24,.8)
     first_door_key.rotation = Vec3(-44, -10, -57)
 
-
 first_door_key.on_click = get_first_door_key
 
 def open_first_door():
@@ -184,13 +227,16 @@ def open_first_door():
         JSON_settings["game_settings"]["tutorial"] = True
         tutorial = True
 
+        ammo_9m.enabled = True
+        pistol.enabled = True
+
         with open('settings.json', 'w', encoding='utf-8') as f:
             json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
 big_metal_door.on_click = open_first_door
 
 def get_pistol():
-    global magazine, magazine_size
+    global magazine, magazine_size, speed, JSON_settings
 
     pick_up_sound.play()
 
@@ -201,18 +247,34 @@ def get_pistol():
     player.weapon = pistol
     magazine_size = 12
     magazine = magazine_size
+    speed -= 0.4
+
+    JSON_settings["game_settings"]["weapon"] = 'pm'
+    JSON_settings["game_settings"]["magazine"] = magazine
+    JSON_settings["game_settings"]["max_bullets"] = max_bullets
+
+    with open('settings.json', 'w', encoding='utf-8') as f:
+        json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
 pistol.on_click = get_pistol
 
 reload_time = 3
 reloading = False
 
 def get_ammo():
-    global max_bullets
+    global max_bullets, JSON_settings
 
     pick_up_sound.play()
     max_bullets += 60
 
     destroy(ammo_9m)
+
+    JSON_settings["game_settings"]["magazine"] = magazine
+    JSON_settings["game_settings"]["max_bullets"] = max_bullets
+
+    with open('settings.json', 'w', encoding='utf-8') as f:
+        json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
 ammo_9m.on_click = get_ammo
 
 def reload():
@@ -242,9 +304,15 @@ def finish_reload():
 run = False
 
 def input(key):
-    global last_shot_time, current_recoil, magazine, reloading, run
+    global last_shot_time, current_recoil, magazine, reloading, run, JSON_settings
 
     now = time.time()
+
+    JSON_settings["game_settings"]["magazine"] = magazine
+    JSON_settings["game_settings"]["max_bullets"] = max_bullets
+
+    with open('settings.json', 'w', encoding='utf-8') as f:
+        json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
     if key == 'left mouse down' and player.weapon and magazine > 0 and not reloading:
         fire_rate = 0.17
@@ -279,13 +347,26 @@ def input(key):
 
     if key == 'insert': print(player.position)
 
+    if key == 'escape':
+        sio.disconnect()
+        application.quit()
+
 
 def load_village():
-    global current_location, forest, location_id
+    global current_location, forest, location_id, fog
 
     location_id = 1
 
     player.position.y = 20
+
+    fog = 0
+
+    forest_model.set_shader_input("camera_pos", camera.world_position)
+    forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
+    forest_model.set_shader_input("fog_density", fog)
+
+    scene.fog_color = color.black
+    scene.fog_density = fog + 0.02
 
     for e in current_location:
         destroy(e)
@@ -321,9 +402,6 @@ def load_first_scene():
     
     location_id = 0
 
-    Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(37, 3.4, -40), rotation_y=90),
-    Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(37, 2.2, 24), rotation_y=90),
-
     for e in current_location:
         destroy(e)
 
@@ -358,22 +436,16 @@ def update():
 
     if tutorial: sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
 
-    # move_speed = 20
+    move_speed = 20
 
-    # x, y = window.position
+    x, y = window.position
 
-    # if held_keys['left arrow']:
-    #     x -= move_speed
-    # if held_keys['right arrow']:
-    #     x += move_speed
-    # if held_keys['up arrow']:
-    #     y -= move_speed  # верх экрана = 0, поэтому вверх уменьшаем y
-    # if held_keys['down arrow']:
-    #     y += move_speed
+    if held_keys['left arrow']:
+        x -= move_speed
+    if held_keys['right arrow']:
+        x += move_speed
 
-    # window.position = (x, y)
-
-    # print(player.position)
+    window.position = (x, y)
 
     ammo_text.text = f"  [{magazine}/{magazine_size}] | {max_bullets}  "
 
@@ -394,17 +466,25 @@ def update():
             pistol.position = Vec3(.5, -.24, .5)
             pistol.rotation = Vec3(0, 86, -1)
 
-
     if player.x > 49 and not village_spawn:
         village_spawn = True
+
+        JSON_settings["game_settings"]["spawn_lokation"] = 'kordon'
+
+        with open('settings.json', 'w', encoding='utf-8') as f:
+            json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
         load_village()
 
     elif player.x < 46 and village_spawn:
         village_spawn = False
 
-        load_first_scene()
+        JSON_settings["game_settings"]["spawn_lokation"] = 'tutorial'
 
+        with open('settings.json', 'w', encoding='utf-8') as f:
+            json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
+        load_first_scene()
 
     # print(player.position)
 
@@ -437,7 +517,6 @@ def update():
     if player.y < -5:
         player.position = Vec3(player.x, 10, player.z)
 
-
 if __name__ == '__main__':
     settings()
     build()
@@ -449,11 +528,16 @@ if __name__ == '__main__':
     player.cursor.scale = 0.003
     player.cursor.position = (0,0)
 
-    player.weapon = None
+    if not tutorial: player.weapon = None
+    elif tutorial and JSON_settings["game_settings"]["weapon"] == 'pm':
+        player.weapon = pistol
+
     player.first_door_key = None
 
     if not tutorial: load_first_scene()
-    else: 
+    elif tutorial and JSON_settings["game_settings"]["spawn_lokation"] == 'tutorial': load_first_scene()
+    elif tutorial and JSON_settings["game_settings"]["spawn_lokation"] == 'kordon':
         load_village()
+        player.position = Vec3(52, 2.4, -18)
 
     app.run()
