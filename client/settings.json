@@ -4,10 +4,10 @@
         "fraction": "stalker"
     },
     "game_settings": {
-        "tutorial": true,
-        "spawn_lokation": "kordon",
-        "weapon": "pm",
-        "magazine": 12,
-        "max_bullets": 45
+        "tutorial": false,
+        "spawn_lokation": "tutorial",
+        "weapon": null,
+        "magazine": 0,
+        "max_bullets": 0
     }
 }

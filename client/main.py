@@ -7,12 +7,13 @@ from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
 
 sio = socketio.Client()
-sio.connect('https://stalker-server-z2l9.onrender.com', transports=['websocket'])
+sio.connect('http://localhost:5000', transports=['websocket'])
 
 other_players = {}
 tutorial = False
 
 max_bullets = 0
+health = 100
 
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
@@ -21,10 +22,16 @@ with open('settings.json', 'r', encoding='utf-8') as f:
     max_bullets = JSON_settings["game_settings"]["max_bullets"]
 
 @sio.event
+def hit(data):
+    global health
+
+    health -= data["damage"]
+
+@sio.event
 def update_players(data):
     global other_players
     for sid, pos in data.items():
-        if sid == sio.sid:   # себя не рисуем
+        if sid == sio.sid:
             continue
         if sid not in other_players:
             other_players[sid] = Entity(
@@ -38,7 +45,6 @@ def update_players(data):
 
 @sio.event
 def new_player(data):
-    """Когда появляется новый игрок"""
     sid = data['sid']
     if sid != sio.sid and sid not in other_players:
         other_players[sid] = Entity(
@@ -64,12 +70,6 @@ def remove_player(sid):
         destroy(other_players[sid])
         del other_players[sid]
 
-
-@sio.event
-def disconnect():
-    print("❌ Отключились от сервера")
-
-
 @sio.event
 def disconnect():
     print("disconnected.")
@@ -77,7 +77,6 @@ def disconnect():
 @sio.event
 def connect():
     print("connected.")
-
 
 app = Ursina()
 
@@ -328,6 +327,21 @@ def input(key):
             if current_recoil > max_recoil:
                 current_recoil = max_recoil
 
+        ray = raycast(
+            player.position,
+            camera.forward,
+            distance=100,
+            ignore=[player, forest, ground, field_gate_border_collider]
+        )
+
+        weapon_name = player.weapon_name
+        print(player.weapon_name)
+
+        for sid, ent in other_players.items():
+            if ray.entity is ent:
+                sio.emit('hit', {'player': sid,'weapon': weapon_name,'distance': ray.distance})
+                print(f'HIT {sid} with {weapon_name}')
+
             pistol.animate_rotation(pistol.rotation + Vec3(0,0,recoil_angle),
                                     duration=recoil_time, curve=curve.linear)
             invoke(lambda: pistol.animate_rotation(pistol.rotation - Vec3(0,0,recoil_angle/1.47),
@@ -432,7 +446,11 @@ village_spawn = False
 run_sound_flag = False
 
 def update():
-    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial
+    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health
+
+    if health <= 0:
+        player.position = Vec3(52, 2.4, -18)
+        health = 100
 
     if tutorial: sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
 
@@ -531,6 +549,7 @@ if __name__ == '__main__':
     if not tutorial: player.weapon = None
     elif tutorial and JSON_settings["game_settings"]["weapon"] == 'pm':
         player.weapon = pistol
+        player.weapon_name = "pm"
 
     player.first_door_key = None
 
