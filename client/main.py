@@ -1,4 +1,5 @@
 import socketio
+import json
 from ursina import *
 from ursina import Audio
 from ursina.shaders import lit_with_shadows_shader
@@ -6,22 +7,39 @@ from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
 
 sio = socketio.Client()
-sio.connect('http://localhost:5000', transports=['websocket'])
+sio.connect('https://stalker-server-z2l9.onrender.com', transports=['websocket'])
+
+
+other_players = {}
+tutorial = False
+
+with open('settings.json', 'r', encoding='utf-8') as f:
+    JSON_settings = json.load(f)
+
+    tutorial = JSON_settings["game_settings"]["tutorial"]
 
 @sio.event
 def update_players(data):
-    global other_players
+    global other_players, tutorial
 
-    for sid, pos in data.items():
-        if sid == sio.sid:
-            continue
-        if sid not in other_players:
-            other_players[sid] = Entity(model='cube', color=color.red, scale=2)
-        other_players[sid].position = Vec3(pos['x'], pos['y'], pos['z'])
-    for sid in list(other_players.keys()):
-        if sid not in data:
-            other_players[sid].disable()
-            del other_players[sid]
+    if tutorial:
+        for sid, pos in data.items():
+            if sid == sio.sid:
+                continue
+            if sid not in other_players:
+                other_players[sid] = Entity(
+                    model='assets/models/stalker.glb',
+                    scale=3.4,
+                    collider='box',
+                    position=Vec3(pos['x'], pos['y'] + 2, pos['z']),
+                    rotation_y=pos.get('ry',0)+180
+                )
+            else:
+                other_players[sid].position = Vec3(pos['x'], pos['y'] + 2, pos['z'])
+                other_players[sid].rotation_y = pos.get('ry',0)+180
+            if sid not in data:
+                other_players[sid].disable()
+                del other_players[sid]
 
 @sio.event
 def disconnect():
@@ -36,7 +54,7 @@ app = Ursina()
 
 fog = 0
 speed = 12
-forest = True
+forest = False
 max_recoil = 120
 recoil_per_shot = 6
 recoil_recovery_speed = 14
@@ -49,11 +67,7 @@ magazine_size = 0
 magazine = magazine_size
 max_bullets = 0
 
-tutorial = True
-
 scope = False
-
-other_players = {}
 
 current_location = []
 location_id = 0
@@ -85,6 +99,9 @@ forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
 forest_model.set_shader_input("fog_density", 0.0)
 forest_collider = Entity(model='assets/models/forest.glb', collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parrent=forest_model, visible=0)
 
+field_gate_border = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0, enabled=False)
+field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parrent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
+
 first_stalker_house = Entity(model='assets/models/stalker_house.glb', scale=1.1, enabled=False)
 first_stalker_house_collider = Entity(model='assets/models/stalker_house.glb', alpha=0, collider='mesh', rotation=Vec3(90, -90, 90), parent=first_stalker_house, x=-.9145,y=2.402, z=-0.265)
 
@@ -106,10 +123,6 @@ def build():
     # first_house = Entity(model='assets/models/stalker_house.glb',collider='mesh')
     if not forest:
         forest_collider.collider = None
-
-    field_gate_border = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0)
-    
-    field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parrent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
 
     first_stalker_house_collider.collider.visible = False
 
@@ -161,10 +174,19 @@ def get_first_door_key():
 first_door_key.on_click = get_first_door_key
 
 def open_first_door():
+    global tutorial
+
     if player.first_door_key:
         big_metal_door.enabled = False
         player.first_door_key = False
         destroy(first_door_key)
+
+        JSON_settings["game_settings"]["tutorial"] = True
+        tutorial = True
+
+        with open('settings.json', 'w', encoding='utf-8') as f:
+            json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
 big_metal_door.on_click = open_first_door
 
 def get_pistol():
@@ -290,6 +312,7 @@ def load_village():
 
     forest_model.enabled = True
     big_metal_door.enabled = True
+    field_gate_border.enabled = True
 
     first_stalker_house.enabled = True
 
@@ -318,21 +341,22 @@ def load_first_scene():
         Entity(model='assets/models/oak_trees.glb', position=Vec3(-3, 0.2, 48), scale=4),
         Entity(model='assets/models/oak_trees.glb', position=Vec3(4, 0.5, 50.2), scale=4.4, rotation_y=87),
         Entity(model='assets/models/oak_trees.glb', position=Vec3(-7, 1.1, -62.4), scale=4, rotation_y=71),
-        Entity(model='assets/models/oak_trees.glb', position=Vec3(-57, 1.4, -6.1), scale=4.4, rotation_y=11),
+        Entity(model='assets/models/oak_trees.glb', position=Vec3(-57, 1.4, -6.1), scale=4.4, rotation_y=11)
     ]
 
     forest_model.enabled = True
     big_metal_door.enabled = True
+    field_gate_border.enabled = False
 
     first_stalker_house.enabled = False
 
-village_spawm = False
+village_spawn = False
 run_sound_flag = False
 
 def update():
-    global current_recoil, fog, village_spawm, run_sound_flag, scope, reloading, run
+    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial
 
-    sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z})
+    if tutorial: sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
 
     # move_speed = 20
 
@@ -348,8 +372,6 @@ def update():
     #     y += move_speed
 
     # window.position = (x, y)
-
-    print(other_players)
 
     # print(player.position)
 
@@ -373,13 +395,13 @@ def update():
             pistol.rotation = Vec3(0, 86, -1)
 
 
-    if player.x > 49 and not village_spawm:
-        village_spawm = True
+    if player.x > 49 and not village_spawn:
+        village_spawn = True
 
         load_village()
 
-    elif player.x < 46 and village_spawm:
-        village_spawm = False
+    elif player.x < 46 and village_spawn:
+        village_spawn = False
 
         load_first_scene()
 
@@ -420,9 +442,8 @@ if __name__ == '__main__':
     settings()
     build()
 
-    load_first_scene()
-
     player = FirstPersonController(y=2.2, x=0, z=0, origin_y=2, height=1, collider='capsule', speed=speed, jump_height=1.55, mouse_sensivity=(60, 60))
+    player.camera_pivot.y = 2.7
     player.cursor.color = color.red
     player.cursor.model = 'sphere'
     player.cursor.scale = 0.003
@@ -430,5 +451,9 @@ if __name__ == '__main__':
 
     player.weapon = None
     player.first_door_key = None
+
+    if not tutorial: load_first_scene()
+    else: 
+        load_village()
 
     app.run()
