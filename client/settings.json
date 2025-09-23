@@ -1,13 +1,14 @@
 {
     "user_settings": {
         "nickname": "User1",
-        "fraction": "stalker"
+        "fraction": "stalker",
+        "API_key": ""
     },
     "game_settings": {
-        "tutorial": false,
-        "spawn_lokation": "tutorial",
-        "weapon": null,
-        "magazine": 0,
-        "max_bullets": 0
+        "tutorial": true,
+        "spawn_location": "kordon",
+        "weapon": "pm",
+        "magazine": 11,
+        "max_bullets": 99685
     }
 }

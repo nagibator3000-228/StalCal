@@ -7,7 +7,7 @@ from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
 
 sio = socketio.Client()
-sio.connect('https://stalker-server-z2l9.onrender.com', transports=['websocket'])
+sio.connect('http://localhost:5000', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -26,20 +26,19 @@ def hit(data):
     global health
 
     health -= data["damage"]
+    
 
 @sio.event
 def update_players(data):
     global other_players
     for sid, pos in data.items():
-        if sid == sio.sid:
-            continue
         if sid not in other_players:
             other_players[sid] = Entity(
                 model='assets/models/stalker.glb',
                 scale=2,
                 collider='box'
             )
-        other_players[sid].position = Vec3(pos['x'], pos['y'] + 2.4, pos['z'])
+        other_players[sid].position = Vec3(pos['x'], pos['y'] + 2.3, pos['z'])
         other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
 
@@ -51,16 +50,26 @@ def new_player(data):
             model='assets/models/stalker.glb',
             scale=2,
             collider='box'
-        )
-        other_players[sid].position = Vec3(data['x'], data['y'] + 2.4, data['z'])
-        other_players[sid].rotation_y = data.get('ry', 0) + 180
+            )
+
+    other_players[sid].position = Vec3(data['x'], data['y'] + 2.3, data['z'])
+    other_players[sid].rotation_y = data.get('ry', 0) + 180
+
+
+@sio.event
+def player_left(sid):
+    player = sid['sid']
+
+    if player in other_players:
+        destroy(other_players[sid])
+        del other_players[sid]
 
 
 @sio.event
 def move(data):
     sid = data['sid']
     if sid in other_players:
-        other_players[sid].position = Vec3(data['x'], data['y'] + 2.4, data['z'])
+        other_players[sid].position = Vec3(data['x'], data['y'] + 2.3, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 
@@ -74,9 +83,11 @@ def remove_player(sid):
 def disconnect():
     print("disconnected.")
 
+
 @sio.event
 def connect():
     print("connected.")
+
 
 app = Ursina()
 
@@ -97,7 +108,7 @@ magazine = magazine_size
 scope = False
 
 current_location = []
-location_id = 0
+location_id = ''
 
 lit_with_shadows_fog_shader = Shader(
     language=Shader.GLSL,
@@ -105,9 +116,10 @@ lit_with_shadows_fog_shader = Shader(
     fragment=open("assets/shaders/lit_with_fog_fragment.glsl").read(),
 )
 
-ground = Entity(model='plane', scale=(1000, 1, 1000), collider='box', y=2, visible=False)
+ground = Entity(model='plane', scale=(600, 1, 600), collider='box', y=2, visible=False)
 
 shoot_sound = Audio('assets/sounds/pm_shoot.mp3', autoplay=False)
+hit_sound = Audio('assets/sounds/hit.mp3', autoplay=False)
 
 reload_sound = Audio('assets/sounds/reload.mp3', autoplay=False)
 
@@ -124,7 +136,7 @@ forest_model = Entity(model='assets/models/forest.glb',y=2,shader=lit_with_shado
 forest_model.set_shader_input("camera_pos", camera.world_position)
 forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
 forest_model.set_shader_input("fog_density", 0.0)
-forest_collider = Entity(model='assets/models/forest.glb', collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parrent=forest_model, visible=0)
+forest_collider = Entity(model='assets/models/forest.glb', collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parrent=forest_model, visible=0, enabled=False)
 
 field_gate_border = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0, enabled=False)
 field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parrent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
@@ -318,7 +330,7 @@ def input(key):
         if now - last_shot_time >= fire_rate:
             bullet = Entity(model='sphere', scale=.09, color=color.black, position=pistol.world_position + Vec3(.3, .5, 0))
             bullet.animate_position(bullet.position + (camera.forward * 100), curve=curve.linear, duration=.7)
-            destroy(bullet, delay=5)
+            destroy(bullet, delay=2)
             last_shot_time = now
             magazine -= 1
             shoot_sound.stop()
@@ -327,26 +339,21 @@ def input(key):
             if current_recoil > max_recoil:
                 current_recoil = max_recoil
 
-        ray = raycast(
-            player.position,
-            camera.forward,
-            distance=100,
-            ignore=[player, forest, ground, field_gate_border_collider]
-        )
+        ray = raycast(player.position, camera.forward, distance=100, ignore=[camera, player, forest, ground, field_gate_border_collider])
 
         weapon_name = player.weapon_name
-        print(player.weapon_name)
 
         for sid, ent in other_players.items():
             if ray.entity is ent:
+                hit_sound.stop()
+                hit_sound.play()
                 sio.emit('hit', {'player': sid,'weapon': weapon_name,'distance': ray.distance})
+
                 print(f'HIT {sid} with {weapon_name}')
 
-            pistol.animate_rotation(pistol.rotation + Vec3(0,0,recoil_angle),
-                                    duration=recoil_time, curve=curve.linear)
-            invoke(lambda: pistol.animate_rotation(pistol.rotation - Vec3(0,0,recoil_angle/1.47),
-                                                   duration=recoil_time, curve=curve.linear),
-                   delay=recoil_time)
+        pistol.animate_rotation(pistol.rotation + Vec3(0,0,recoil_angle), duration=recoil_time, curve=curve.linear)
+        invoke(lambda: pistol.animate_rotation(pistol.rotation - Vec3(0,0,recoil_angle/1.47), duration=recoil_time, curve=curve.linear), delay=recoil_time)
+
     if magazine == 0 and max_bullets == 0 and key == 'left mouse down' and not reloading and not run and player.weapon:
         empty_sound.stop()
         empty_sound.play()
@@ -369,7 +376,7 @@ def input(key):
 def load_village():
     global current_location, forest, location_id, fog
 
-    location_id = 1
+    location_id = 'kordon'
 
     player.position.y = 20
 
@@ -381,6 +388,8 @@ def load_village():
 
     scene.fog_color = color.black
     scene.fog_density = fog + 0.02
+
+    sio.emit('join_location', location_id)
 
     for e in current_location:
         destroy(e)
@@ -406,6 +415,7 @@ def load_village():
     ]
 
     forest_model.enabled = True
+    forest_collider.enabled = False
     big_metal_door.enabled = True
     field_gate_border.enabled = True
 
@@ -414,7 +424,9 @@ def load_village():
 def load_first_scene():
     global current_location, forest, location_id
     
-    location_id = 0
+    location_id = 'tutorial'
+
+    sio.emit('join_location', location_id)
 
     for e in current_location:
         destroy(e)
@@ -437,6 +449,7 @@ def load_first_scene():
     ]
 
     forest_model.enabled = True
+    forest_collider.enabled = True
     big_metal_door.enabled = True
     field_gate_border.enabled = False
 
@@ -444,9 +457,10 @@ def load_first_scene():
 
 village_spawn = False
 run_sound_flag = False
+sneak = False
 
 def update():
-    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health
+    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak
 
     if health <= 0:
         player.position = Vec3(52, 2.4, -18)
@@ -487,7 +501,7 @@ def update():
     if player.x > 49 and not village_spawn:
         village_spawn = True
 
-        JSON_settings["game_settings"]["spawn_lokation"] = 'kordon'
+        JSON_settings["game_settings"]["spawn_location"] = 'kordon'
 
         with open('settings.json', 'w', encoding='utf-8') as f:
             json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
@@ -497,7 +511,7 @@ def update():
     elif player.x < 46 and village_spawn:
         village_spawn = False
 
-        JSON_settings["game_settings"]["spawn_lokation"] = 'tutorial'
+        JSON_settings["game_settings"]["spawn_location"] = 'tutorial'
 
         with open('settings.json', 'w', encoding='utf-8') as f:
             json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
@@ -520,10 +534,10 @@ def update():
     if held_keys['shift'] and not scope and not reloading:
         player.speed = speed + 4
         camera.fov = 145
-        running_sound.pitch = 1.56
+        running_sound.pitch = 1.6
         run = True
-    elif scope and not reloading:
-        player.speed = speed - 1.7
+    elif scope and not reloading and player.weapon_name == 'pm':
+        player.speed = speed - 1.5
         camera.fov = 115
         running_sound.pitch = .7
     elif not reloading:
@@ -531,6 +545,18 @@ def update():
         player.speed = speed
         camera.fov = 130
         running_sound.pitch = 1
+
+    if held_keys['control'] and not sneak:
+        player.camera_pivot.y = 2.2
+        player.height = 1
+        speed -= 2
+        running_sound.pitch = 1.45
+        sneak = True
+    elif sneak and not held_keys['control']:
+        player.camera_pivot.y = 2.7
+        player.height = 2
+        speed += 2
+        sneak = False
 
     if player.y < -5:
         player.position = Vec3(player.x, 10, player.z)
@@ -554,9 +580,12 @@ if __name__ == '__main__':
     player.first_door_key = None
 
     if not tutorial: load_first_scene()
-    elif tutorial and JSON_settings["game_settings"]["spawn_lokation"] == 'tutorial': load_first_scene()
-    elif tutorial and JSON_settings["game_settings"]["spawn_lokation"] == 'kordon':
+    elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'tutorial': load_first_scene()
+    elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'kordon':
         load_village()
         player.position = Vec3(52, 2.4, -18)
+
+    sio.emit('join_location', location_id)
+    
 
     app.run()
