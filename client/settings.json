@@ -7,8 +7,8 @@
     "game_settings": {
         "tutorial": true,
         "spawn_location": "kordon",
-        "weapon": "pm",
-        "magazine": 5,
-        "max_bullets": 99286
+        "weapon": "gold_deagle",
+        "magazine": 6,
+        "max_bullets": 98797
     }
 }
