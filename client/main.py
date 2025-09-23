@@ -5,12 +5,21 @@ from ursina import Audio
 from ursina.shaders import lit_with_shadows_shader
 from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
+from panda3d.core import loadPrcFileData
+
+loadPrcFileData('', '''
+icon-filename ""
+win-size 1440 1080
+window-type onscreen
+notify-level error
+''')
 
 sio = socketio.Client()
-sio.connect('https://stalker-server-z2l9.onrender.com', transports=['websocket'])
+sio.connect('http://localhost:5000', transports=['websocket'])
 
 other_players = {}
 tutorial = False
+move_window = False
 
 max_bullets = 0
 health = 100
@@ -35,10 +44,10 @@ def update_players(data):
         if sid not in other_players:
             other_players[sid] = Entity(
                 model='assets/models/stalker.glb',
-                scale=2,
+                scale=1.7,
                 collider='box'
             )
-        other_players[sid].position = Vec3(pos['x'], pos['y'] + 2.3, pos['z'])
+        other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.9, pos['z'])
         other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
 
@@ -48,11 +57,11 @@ def new_player(data):
     if sid != sio.sid and sid not in other_players:
         other_players[sid] = Entity(
             model='assets/models/stalker.glb',
-            scale=2,
+            scale=1.7,
             collider='box'
             )
 
-    other_players[sid].position = Vec3(data['x'], data['y'] + 2.3, data['z'])
+    other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
     other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 
@@ -69,7 +78,7 @@ def player_left(sid):
 def move(data):
     sid = data['sid']
     if sid in other_players:
-        other_players[sid].position = Vec3(data['x'], data['y'] + 2.3, data['z'])
+        other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 
@@ -108,7 +117,6 @@ magazine = magazine_size
 scope = False
 
 current_location = []
-location_id = ''
 
 lit_with_shadows_fog_shader = Shader(
     language=Shader.GLSL,
@@ -374,9 +382,7 @@ def input(key):
 
 
 def load_village():
-    global current_location, forest, location_id, fog
-
-    location_id = 'kordon'
+    global current_location, forest, fog
 
     player.position.y = 20
 
@@ -388,8 +394,6 @@ def load_village():
 
     scene.fog_color = color.black
     scene.fog_density = fog + 0.02
-
-    sio.emit('join_location', location_id)
 
     for e in current_location:
         destroy(e)
@@ -422,11 +426,7 @@ def load_village():
     first_stalker_house.enabled = True
 
 def load_first_scene():
-    global current_location, forest, location_id
-    
-    location_id = 'tutorial'
-
-    sio.emit('join_location', location_id)
+    global current_location, forest
 
     for e in current_location:
         destroy(e)
@@ -460,24 +460,30 @@ run_sound_flag = False
 sneak = False
 
 def update():
-    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak
+    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak, move_window
 
     if health <= 0:
         player.position = Vec3(52, 2.4, -18)
         health = 100
 
-    if tutorial: sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
+    if tutorial:
+        if not sneak:
+            sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
+        else:
+            sio.emit('move', {'x': player.x, 'y': player.y - 1.4, 'z': player.z, 'ry': player.rotation.y})
+
 
     move_speed = 20
 
-    x, y = window.position
+    if move_window:
+        x, y = window.position
 
-    if held_keys['left arrow']:
-        x -= move_speed
-    if held_keys['right arrow']:
-        x += move_speed
+        if held_keys['left arrow']:
+            x -= move_speed
+        if held_keys['right arrow']:
+            x += move_speed
 
-    window.position = (x, y)
+        window.position = (x, y)
 
     ammo_text.text = f"  [{magazine}/{magazine_size}] | {max_bullets}  "
 
@@ -585,7 +591,5 @@ if __name__ == '__main__':
         load_village()
         player.position = Vec3(52, 2.4, -18)
 
-    sio.emit('join_location', location_id)
-    
 
     app.run()

@@ -8,7 +8,7 @@
         "tutorial": true,
         "spawn_location": "kordon",
         "weapon": "pm",
-        "magazine": 11,
-        "max_bullets": 99685
+        "magazine": 5,
+        "max_bullets": 99286
     }
 }
