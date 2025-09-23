@@ -7,7 +7,7 @@ from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
 
 sio = socketio.Client()
-sio.connect('http://localhost:5000', transports=['websocket'])
+sio.connect('https://stalker-server-z2l9.onrender.com', transports=['websocket'])
 
 other_players = {}
 tutorial = False
