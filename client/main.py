@@ -15,7 +15,7 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-sio.connect('http://localhost:5000', transports=['websocket'])
+sio.connect('https://stalker-server-z2l9.onrender.com/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
