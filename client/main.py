@@ -16,8 +16,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-sio.connect('https://stalker-server-z2l9.onrender.com/', transports=['websocket'])
-# sio.connect('http://localhost:5000/', transports=['websocket'])
+# sio.connect('https://stalker-server-z2l9.onrender.com/', transports=['websocket'])
+sio.connect('http://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -25,6 +25,7 @@ move_window = False
 
 max_bullets = 0
 health = 100
+duel_map_spawn_point = 0
 
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
@@ -122,6 +123,7 @@ last_shot_time = 0
 magazine_size = 0
 magazine = magazine_size
 weapon_distance = 0
+duel = False
 
 scope = False
 
@@ -149,7 +151,7 @@ running_sound = Audio('assets/sounds/running.mp3', autoplay=False, loop=True, vo
 
 ambient_rain = Audio('assets/sounds/ambient_rain.mp3', autoplay=True, loop=True, volume=.3)
 
-kill_tab = Text(parrent=camera, scale=1, color=color.red, origin=(-0.6, -16.3), text='')
+kill_tab = Text(parent=camera, scale=1, color=color.red, origin=(-0.6, -16.3), text='')
 
 def clear_kill_tab():
    kill_tab.text = ""
@@ -209,14 +211,16 @@ ammo_bg = Entity(
     position=(0.75, -0.45)
 )
 
-ammo_text = Text(
+info_bar = Text(
     parent=ammo_bg,
-    text=f"{magazine}/{magazine_size} | {max_bullets}",
+    text=f"{health}\n{magazine}/{magazine_size} | {max_bullets}",
     origin=(0,0),
     scale=6,
     position=(0,0),
     color=color.white
 )
+
+
 
 ammo_9m = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
 pm = Entity(parent=scene, model='assets/models/pm.glb', origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104, enabled=False)
@@ -392,15 +396,9 @@ def finish_reload():
 run = False
 
 def input(key):
-    global last_shot_time, current_recoil, magazine, reloading, run, JSON_settings, weapon_distance
+    global last_shot_time, current_recoil, magazine, reloading, run, JSON_settings, weapon_distance, duel
 
     now = time.time()
-
-    JSON_settings["game_settings"]["magazine"] = magazine
-    JSON_settings["game_settings"]["max_bullets"] = max_bullets
-
-    with open('settings.json', 'w', encoding='utf-8') as f:
-        json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
     if key == 'left mouse down' and player.weapon and magazine > 0 and not reloading:
         if now - last_shot_time >= fire_rate:
@@ -426,6 +424,13 @@ def input(key):
                     sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance})
 
                     print(f'HIT {sid} with {weapon_name}')
+
+            JSON_settings["game_settings"]["magazine"] = magazine
+            JSON_settings["game_settings"]["max_bullets"] = max_bullets
+
+            with open('settings.json', 'w', encoding='utf-8') as f:
+                json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
         if player.weapon_name == 'pm':
             player.weapon.animate_rotation(player.weapon.rotation + Vec3(0,0,recoil_angle), duration=recoil_time, curve=curve.linear)
             invoke(lambda: player.weapon.animate_rotation(player.weapon.rotation - Vec3(0,0,recoil_angle/1.47), duration=recoil_time, curve=curve.linear), delay=recoil_time/1.7)
@@ -450,6 +455,47 @@ def input(key):
     if key == 'escape':
         sio.disconnect()
         application.quit()
+
+def load_duelMap():
+    global current_location, forest, fog, duel, duel_map_spawn_point
+    duel = True
+
+    fog = 0
+
+    if not duel_map_spawn_point:
+        player.position = Vec3(1000, 520, 905)
+    else:
+        player.position = Vec3(1000, 520, 1095)
+
+    forest_model.set_shader_input("camera_pos", camera.world_position)
+    forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
+    forest_model.set_shader_input("fog_density", fog)
+
+    scene.fog_color = color.black
+    scene.fog_density = fog + 0
+
+    for e in current_location:
+        destroy(e)
+    current_location = [
+        Entity(model='plane', scale=(200, 2, 200), position=Vec3(1000, 500, 1000), texture='grass', collider='box'),
+        Entity(model='cube', scale=(3, 40, 200), position=Vec3(1100, 520, 1000), collider='box', texture='brick'),
+        Entity(model='cube', scale=(3, 40, 200), position=Vec3(900, 520, 1000), collider='box', texture='brick'),
+        Entity(model='cube', scale=(3, 40, 200), position=Vec3(1000, 520, 900), collider='box', texture='brick', rotation_y=90),
+        Entity(model='cube', scale=(3, 40, 200), position=Vec3(1000, 520, 1100), collider='box', texture='brick', rotation_y=90),
+        Entity(model='cube', scale=(20, 25, 100), position=Vec3(1006, 500, 910), collider='box', texture='brick', rotation_y=90),
+        Entity(model='cube', scale=(20, 25, 100), position=Vec3(1006, 500, 1090), collider='box', texture='brick', rotation_y=90),
+        Entity(model='cube', scale=(5, 3.5, 97), position=Vec3(1009, 513, 922), collider='box', rotation_y=90, texture='brick')
+    ]
+    
+    ladder = Entity(model='assets/models/ladder.glb', scale=7, position=Vec3(959, 505, 934), rotation_y=90)
+    ladder_collider = Entity(model='cube', position=Vec3(959, 506, 934), collider='box', scale=(5, 1, 24), rotation_x=32, visible=False)
+    ladder_collider2 = Entity(model='cube', position=Vec3(959, 512, 922), scale=(5, 1, 5), collider='box', visible=False)
+
+    forest_model.enabled = False
+    forest_collider.enabled = False
+    big_metal_door.enabled = False
+    field_gate_border.enabled = False
+    first_stalker_house.enabled = False
 
 
 def load_village():
@@ -553,10 +599,17 @@ def stay():
       sneak_flag = True
 
 def update():
-    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak_flag, move_window
+    global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak_flag, move_window, duel, health
 
-    if health <= 0:
+    if health <= 0 and not duel:
         player.position = Vec3(52, 2.4, -18)
+        sio.emit('kill', {'msg': 'killed'})
+        health = 100
+    elif health <= 0:
+        if not duel_map_spawn_point:
+            player.position = Vec3(1000, 520, 905)
+        else:
+            player.position = Vec3(1000, 520, 1095)
         sio.emit('kill', {'msg': 'killed'})
         health = 100
 
@@ -569,17 +622,16 @@ def update():
 
     move_speed = 20
 
-    if move_window:
-        x, y = window.position
+    x, y = window.position
 
-        if held_keys['left arrow']:
-            x -= move_speed
-        if held_keys['right arrow']:
-            x += move_speed
+    if held_keys['left arrow']:
+        x -= move_speed
+    if held_keys['right arrow']:
+        x += move_speed
 
-        window.position = (x, y)
+    window.position = (x, y)
 
-    ammo_text.text = f"  [{magazine}/{magazine_size}] | {max_bullets}  "
+    info_bar.text = f"  {health}\n{magazine}/{magazine_size}] | {max_bullets}  "
 
     forest_model.set_shader_input("camera_pos", camera.world_position)
     forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
@@ -607,7 +659,7 @@ def update():
             goldEagle.position = Vec3(.6, -.16, .33)
             goldEagle.rotation = Vec3(0, 178, -.1)
 
-    if player.x > 49 and not village_spawn:
+    if player.x > 49 and not village_spawn and not duel:
         village_spawn = True
 
         JSON_settings["game_settings"]["spawn_location"] = 'kordon'
@@ -692,6 +744,8 @@ if __name__ == '__main__':
     elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'kordon':
         load_village()
         player.position = Vec3(52, 2.4, -18)
+    elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'duel':
+        load_duelMap()
 
 
     app.run()
