@@ -27,6 +27,7 @@ max_bullets = 0
 health = 100
 duel_map_spawn_point = 0
 
+
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
 
@@ -47,9 +48,9 @@ def update_players(data):
         if sid not in other_players:
             other_players[sid] = Entity(
                 model='assets/models/stalker.glb',
-                scale=1.7,
-                collider='box'
+                scale=1.7
             )
+            other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, 1.2), y=-3)
         other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.9, pos['z'])
         other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
@@ -60,13 +61,11 @@ def new_player(data):
     if sid != sio.sid and sid not in other_players:
         other_players[sid] = Entity(
             model='assets/models/stalker.glb',
-            scale=1.7,
-            collider='box'
+            scale=1.7
             )
-
+        other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, .7), y=-3)
     other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
     other_players[sid].rotation_y = data.get('ry', 0) + 180
-
 
 @sio.event
 def player_left(sid):
@@ -108,6 +107,7 @@ def connect():
 
 
 app = Ursina()
+
 
 fog = 0
 speed = 50
@@ -160,10 +160,10 @@ forest_model = Entity(model='assets/models/forest.glb',y=2,shader=lit_with_shado
 forest_model.set_shader_input("camera_pos", camera.world_position)
 forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
 forest_model.set_shader_input("fog_density", 0.0)
-forest_collider = Entity(model='assets/models/forest.glb', collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parrent=forest_model, visible=0, enabled=False)
+forest_collider = Entity(model='assets/models/forest.glb', collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parent=forest_model, visible=0, enabled=False)
 
 field_gate_border = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0, enabled=False)
-field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parrent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
+field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
 
 first_stalker_house = Entity(model='assets/models/stalker_house.glb', scale=1.1, enabled=False)
 first_stalker_house_collider = Entity(model='assets/models/stalker_house.glb', alpha=0, collider='mesh', rotation=Vec3(90, -90, 90), parent=first_stalker_house, x=-.9145,y=2.402, z=-0.265)
@@ -197,11 +197,7 @@ def build():
     first_stalker_house.rotation_y = -19
 
     field_gate_border1 = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(44, 2.05, 42), rotation_y=83)
-    Entity(scale=(3.25, 5, .6), collider='box', parrent=field_gate_border1, position=field_gate_border1.position, rotation_y=field_gate_border1.rotation.y)
-
-    a = Entity(model='quad', position=Vec3(46.7, 8, 9.7), collider='box', scale=(32,27,5), rotation_y=90, visible=False)
-    a.collider.visible = True
-
+    Entity(scale=(3.25, 5, .6), collider='box', parent=field_gate_border1, position=field_gate_border1.position, rotation_y=field_gate_border1.rotation.y)
 
 ammo_bg = Entity(
     parent=camera.ui,
@@ -219,8 +215,6 @@ info_bar = Text(
     position=(0,0),
     color=color.white
 )
-
-
 
 ammo_9m = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
 pm = Entity(parent=scene, model='assets/models/pm.glb', origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104, enabled=False)
@@ -418,11 +412,10 @@ def input(key):
             weapon_name = player.weapon_name
 
             for sid, ent in other_players.items():
-                if ray.entity is ent:
+                if ray.entity == ent.colliders:
                     hit_sound.stop()
                     hit_sound.play()
                     sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance})
-
                     print(f'HIT {sid} with {weapon_name}')
 
             JSON_settings["game_settings"]["magazine"] = magazine
@@ -577,15 +570,16 @@ run_sound_flag = False
 sneak_flag = False
 
 def sneak():
-   player.camera_pivot.y = 2.2 - held_keys['left control']
-   player.height = 2 - held_keys['left control']
-   player.speed = speed - 2
+    player.camera_pivot.y = 2.2 - held_keys['left control']
+    player.height = 2 - held_keys['left control']
+    player.speed = speed - 2
 
-   ray = raycast(origin=camera.world_position, direction=Vec3(0, 1, 0), distance=1, ignore=[camera, player])
-   if (ray.hit):
-      player.jump_height = 0
-   else:
-      player.jump_height = 1.55
+    ray = raycast(origin=camera.world_position, direction=Vec3(0, 1, 0), distance=1, ignore=[camera, player])
+   
+    if ray.hit:
+        player.jump_height = 0
+    else:
+        player.jump_height = 1.55
 
 def stay():
    global sneak_flag

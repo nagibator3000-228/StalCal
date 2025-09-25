@@ -8,7 +8,7 @@
         "tutorial": true,
         "spawn_location": "kordon",
         "weapon": "gold_deagle",
-        "magazine": 2,
-        "max_bullets": 98402
+        "magazine": 0,
+        "max_bullets": 98154
     }
 }
