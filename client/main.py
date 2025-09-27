@@ -27,7 +27,6 @@ max_bullets = 0
 health = 100
 duel_map_spawn_point = 0
 
-
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
 
@@ -44,15 +43,17 @@ def hit(data):
 @sio.event
 def update_players(data):
     global other_players
-    for sid, pos in data.items():
+
+    players_data = data["players"]
+    for sid, pos in players_data.items():
         if sid not in other_players:
             other_players[sid] = Entity(
                 model='assets/models/stalker.glb',
                 scale=1.7
             )
             other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, 1.2), y=-3)
-        other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.9, pos['z'])
-        other_players[sid].rotation_y = pos.get('ry', 0) + 180
+            other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.9, pos['z'])
+            other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
 
 @sio.event
@@ -64,8 +65,8 @@ def new_player(data):
             scale=1.7
             )
         other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, .7), y=-3)
-    other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
-    other_players[sid].rotation_y = data.get('ry', 0) + 180
+        other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
+        other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 @sio.event
 def player_left(sid):
@@ -494,7 +495,7 @@ def load_duelMap():
 def load_village():
     global current_location, forest, fog
 
-    player.position.y = 20
+    player.position = Vec3(52, 2.4, -18)
 
     fog = 0
 
@@ -737,7 +738,6 @@ if __name__ == '__main__':
     elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'tutorial': load_first_scene()
     elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'kordon':
         load_village()
-        player.position = Vec3(52, 2.4, -18)
     elif tutorial and JSON_settings["game_settings"]["spawn_location"] == 'duel':
         load_duelMap()
 
