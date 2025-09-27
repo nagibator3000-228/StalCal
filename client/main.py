@@ -16,8 +16,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-# sio.connect('wss://stalker-server-z2l9.onrender.com/game', transports=['websocket'])
-sio.connect('ws://localhost:5000/', transports=['websocket'])
+sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
+# sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -220,7 +220,10 @@ info_bar = Text(
     color=color.white
 )
 
-ammo_9m = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
+ammo_9mm = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
+ammo_9mm_1 = Entity(model='assets/models/9mm_ammo_box.glb', scale=ammo_9mm.scale, position=Vec3(71, 2, -36), collider='box', enabled=True)
+ammo_9mm_2 = Entity(model='assets/models/9mm_ammo_box.glb', scale=ammo_9mm.scale, position=Vec3(112, 2, 2), collider='box', enabled=True)
+
 pm = Entity(parent=scene, model='assets/models/pm.glb', origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104, enabled=False)
 
 goldEagle = Entity(parent=scene, model='assets/models/gold_deagle.glb', origin_y=-.5, collider='box', position=Vec3(70, 2.2, -52), scale=.0023, rotation=Vec3(0, 0, 0), enabled=True)
@@ -258,7 +261,7 @@ def get_deagle():
 goldEagle.on_click = get_deagle
 
 if tutorial and JSON_settings["game_settings"]["weapon"] == None:
-    ammo_9m.enabled = True
+    ammo_9mm.enabled = True
     pm.enabled = True
 elif tutorial and JSON_settings["game_settings"]["weapon"] == 'pm':
     weapon_distance = 100
@@ -311,7 +314,7 @@ def open_first_door():
         JSON_settings["game_settings"]["tutorial"] = True
         tutorial = True
 
-        ammo_9m.enabled = True
+        ammo_9mm.enabled = True
         pm.enabled = True
 
         with open('settings.json', 'w', encoding='utf-8') as f:
@@ -357,7 +360,7 @@ def get_ammo():
     pick_up_sound.play()
     max_bullets += 60
 
-    destroy(ammo_9m)
+    destroy(ammo_9mm)
 
     JSON_settings["game_settings"]["magazine"] = magazine
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
@@ -365,7 +368,39 @@ def get_ammo():
     with open('settings.json', 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
-ammo_9m.on_click = get_ammo
+ammo_9mm.on_click = get_ammo
+
+def get_ammo_1():
+    global max_bullets, JSON_settings
+
+    pick_up_sound.play()
+    max_bullets += 60
+
+    destroy(ammo_9mm_1)
+
+    JSON_settings["game_settings"]["magazine"] = magazine
+    JSON_settings["game_settings"]["max_bullets"] = max_bullets
+
+    with open('settings.json', 'w', encoding='utf-8') as f:
+        json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
+ammo_9mm_1.on_click = get_ammo_1
+
+def get_ammo_2():
+    global max_bullets, JSON_settings
+
+    pick_up_sound.play()
+    max_bullets += 60
+
+    destroy(ammo_9mm_2)
+
+    JSON_settings["game_settings"]["magazine"] = magazine
+    JSON_settings["game_settings"]["max_bullets"] = max_bullets
+
+    with open('settings.json', 'w', encoding='utf-8') as f:
+        json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
+
+ammo_9mm_2.on_click = get_ammo_2
 
 def reload():
     global magazine, max_bullets, reloading

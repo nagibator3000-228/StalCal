@@ -6,9 +6,9 @@
     },
     "game_settings": {
         "tutorial": true,
-        "spawn_location": "duel",
+        "spawn_location": "kordon",
         "weapon": "gold_deagle",
-        "magazine": 0,
-        "max_bullets": 97776
+        "magazine": 5,
+        "max_bullets": 98129
     }
 }
