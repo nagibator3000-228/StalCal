@@ -25,7 +25,9 @@ move_window = False
 
 max_bullets = 0
 health = 100
-duel_map_spawn_point = 0
+magazine_size = 0
+magazine = 0
+duel_map_spawn_point = 1
 
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
@@ -38,7 +40,6 @@ def hit(data):
     global health
 
     health -= data["damage"]
-    
 
 @sio.event
 def update_players(data):
@@ -82,6 +83,11 @@ def kill(message):
 
     invoke(clear_kill_tab, delay=1)
 
+    if duel:
+        if not duel_map_spawn_point:
+            player.position = Vec3(1000, 520, 905)
+        else:
+            player.position = Vec3(1000, 520, 1095)
 
 @sio.event
 def move(data):
@@ -121,8 +127,6 @@ recoil_angle = 5
 recoil_time = 0.05
 fire_rate = 0
 last_shot_time = 0
-magazine_size = 0
-magazine = magazine_size
 weapon_distance = 0
 duel = False
 
@@ -615,16 +619,16 @@ def update():
             sio.emit('move', {'x': player.x, 'y': player.y - 1.4, 'z': player.z, 'ry': player.rotation.y})
 
 
-    move_speed = 20
+    # move_speed = 20
 
-    x, y = window.position
+    # x, y = window.position
 
-    if held_keys['left arrow']:
-        x -= move_speed
-    if held_keys['right arrow']:
-        x += move_speed
+    # if held_keys['left arrow']:
+    #     x -= move_speed
+    # if held_keys['right arrow']:
+    #     x += move_speed
 
-    window.position = (x, y)
+    # window.position = (x, y)
 
     info_bar.text = f"  {health}\n{magazine}/{magazine_size}] | {max_bullets}  "
 
