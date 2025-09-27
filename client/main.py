@@ -16,8 +16,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-sio.connect('https://stalker-server-z2l9.onrender.com/', transports=['websocket'])
-# sio.connect('http://localhost:5000/', transports=['websocket')]
+# sio.connect('wss://stalker-server-z2l9.onrender.com/game', transports=['websocket'])
+sio.connect('ws://localhost:5000/game', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -35,13 +35,13 @@ with open('settings.json', 'r', encoding='utf-8') as f:
     tutorial = JSON_settings["game_settings"]["tutorial"]
     max_bullets = JSON_settings["game_settings"]["max_bullets"]
 
-@sio.event
+@sio.event()
 def hit(data):
     global health
 
     health -= data["damage"]
 
-@sio.event
+@sio.event()
 def update_players(data):
     global other_players
 
@@ -57,7 +57,7 @@ def update_players(data):
             other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
 
-@sio.event
+@sio.event()
 def new_player(data):
     sid = data['sid']
     if sid != sio.sid and sid not in other_players:
@@ -69,7 +69,7 @@ def new_player(data):
         other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
-@sio.event
+@sio.event()
 def player_left(sid):
     player = sid['sid']
 
@@ -77,7 +77,7 @@ def player_left(sid):
         destroy(other_players[sid])
         del other_players[sid]
 
-@sio.event
+@sio.event()
 def kill(message):
     kill_tab.text = 'KILL'
 
@@ -89,7 +89,7 @@ def kill(message):
         else:
             player.position = Vec3(1044, 525, 1090)
 
-@sio.event
+@sio.event()
 def move(data):
     sid = data['sid']
     if sid in other_players:
@@ -97,18 +97,18 @@ def move(data):
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 
-@sio.event
+@sio.event()
 def remove_player(sid):
     if sid in other_players:
         destroy(other_players[sid])
         del other_players[sid]
 
-@sio.event
+@sio.event()
 def disconnect():
     print("disconnected.")
 
 
-@sio.event
+@sio.event()
 def connect():
     print("connected.")
 
@@ -420,7 +420,7 @@ def input(key):
                 if ray.entity == ent.colliders:
                     hit_sound.stop()
                     hit_sound.play()
-                    sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance})
+                    sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance}, )
                     print(f'HIT {sid} with {weapon_name}')
 
             JSON_settings["game_settings"]["magazine"] = magazine
@@ -608,7 +608,7 @@ def update():
 
     if health <= 0 and not duel:
         player.position = Vec3(52, 2.4, -18)
-        sio.emit('kill', {'msg': 'killed'})
+        sio.emit('kill', {'msg': 'killed'}, )
         health = 100
     elif health <= 0:
         if not duel_map_spawn_point:
@@ -616,14 +616,14 @@ def update():
         else:
             player.position = Vec3(1044, 525, 1090)
 
-        sio.emit('kill', {'msg': 'killed'})
+        sio.emit('kill', {'msg': 'killed'}, )
         health = 100
 
     if tutorial:
         if not sneak_flag:
-            sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
+            sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y}, )
         else:
-            sio.emit('move', {'x': player.x, 'y': player.y - 1.4, 'z': player.z, 'ry': player.rotation.y})
+            sio.emit('move', {'x': player.x, 'y': player.y - 1.4, 'z': player.z, 'ry': player.rotation.y}, )
 
 
     # move_speed = 20
