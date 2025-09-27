@@ -85,9 +85,9 @@ def kill(message):
 
     if duel:
         if not duel_map_spawn_point:
-            player.position = Vec3(1000, 520, 905)
+            player.position = Vec3(965, 520, 905)
         else:
-            player.position = Vec3(1000, 520, 1095)
+            player.position = Vec3(1044, 525, 1090)
 
 @sio.event
 def move(data):
@@ -458,12 +458,12 @@ def load_duelMap():
     global current_location, forest, fog, duel, duel_map_spawn_point
     duel = True
 
-    fog = 0
+    fog = 0.001
 
     if not duel_map_spawn_point:
-        player.position = Vec3(1000, 520, 905)
+        player.position = Vec3(965, 525, 905)
     else:
-        player.position = Vec3(1000, 520, 1095)
+        player.position = Vec3(1044, 525, 1090)
 
     forest_model.set_shader_input("camera_pos", camera.world_position)
     forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
@@ -482,12 +482,17 @@ def load_duelMap():
         Entity(model='cube', scale=(3, 40, 200), position=Vec3(1000, 520, 1100), collider='box', texture='brick', rotation_y=90),
         Entity(model='cube', scale=(20, 25, 100), position=Vec3(1006, 500, 910), collider='box', texture='brick', rotation_y=90),
         Entity(model='cube', scale=(20, 25, 100), position=Vec3(1006, 500, 1090), collider='box', texture='brick', rotation_y=90),
-        Entity(model='cube', scale=(5, 3.5, 97), position=Vec3(1009, 513, 922), collider='box', rotation_y=90, texture='brick')
+        Entity(model='cube', scale=(5, 3, 97), position=Vec3(1009, 513, 922), collider='box', rotation_y=90, texture='brick'),
+        Entity(model='cube', scale=(5, 3, 97), position=Vec3(1002, 513, 1078), collider='box', rotation_y=90, texture='brick')
     ]
     
     ladder = Entity(model='assets/models/ladder.glb', scale=7, position=Vec3(959, 505, 934), rotation_y=90)
     ladder_collider = Entity(model='cube', position=Vec3(959, 506, 934), collider='box', scale=(5, 1, 24), rotation_x=32, visible=False)
     ladder_collider2 = Entity(model='cube', position=Vec3(959, 512, 922), scale=(5, 1, 5), collider='box', visible=False)
+
+    ladder2 = Entity(model='assets/models/ladder.glb', scale=7, position=Vec3(1053, 505, 1067), rotation_y=-90)
+    ladder2_collider = Entity(model='cube', position=Vec3(1053, 506, 1067), collider='box', scale=(5, 1, 24), rotation_x=32, rotation_y=-180, visible=True)
+    ladder2_collider2 = Entity(model='cube', position=Vec3(1053, 512, 1079), scale=(5, 1, 5), collider='box', visible=True)
 
     forest_model.enabled = False
     forest_collider.enabled = False
@@ -606,9 +611,10 @@ def update():
         health = 100
     elif health <= 0:
         if not duel_map_spawn_point:
-            player.position = Vec3(1000, 520, 905)
+            player.position = Vec3(965, 525, 905)
         else:
-            player.position = Vec3(1000, 520, 1095)
+            player.position = Vec3(1044, 525, 1090)
+
         sio.emit('kill', {'msg': 'killed'})
         health = 100
 
