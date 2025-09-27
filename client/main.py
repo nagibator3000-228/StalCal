@@ -17,7 +17,7 @@ notify-level error
 
 sio = socketio.Client()
 # sio.connect('wss://stalker-server-z2l9.onrender.com/game', transports=['websocket'])
-sio.connect('ws://localhost:5000/game', transports=['websocket'])
+sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -112,13 +112,12 @@ def disconnect():
 def connect():
     print("connected.")
 
-
 app = Ursina()
 
 
-fog = 0
-speed = 50
-forest = False
+fog = 0.02
+speed = 6
+forest = True
 max_recoil = 120
 recoil_per_shot = 6
 recoil_recovery_speed = 14
@@ -420,7 +419,7 @@ def input(key):
                 if ray.entity == ent.colliders:
                     hit_sound.stop()
                     hit_sound.play()
-                    sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance}, )
+                    sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance})
                     print(f'HIT {sid} with {weapon_name}')
 
             JSON_settings["game_settings"]["magazine"] = magazine
@@ -455,10 +454,12 @@ def input(key):
         application.quit()
 
 def load_duelMap():
-    global current_location, forest, fog, duel, duel_map_spawn_point
+    global current_location, forest, fog, duel, duel_map_spawn_point, speed
     duel = True
 
     fog = 0.001
+
+    speed = 20
 
     if not duel_map_spawn_point:
         player.position = Vec3(965, 525, 905)
@@ -503,11 +504,13 @@ def load_duelMap():
 
 
 def load_village():
-    global current_location, forest, fog
+    global current_location, forest, fog, speed
 
     player.position = Vec3(52, 2.4, -18)
 
     fog = 0
+
+    speed = 6
 
     forest_model.set_shader_input("camera_pos", camera.world_position)
     forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
@@ -547,7 +550,9 @@ def load_village():
     first_stalker_house.enabled = True
 
 def load_first_scene():
-    global current_location, forest
+    global current_location, forest, speed
+
+    speed = 6
 
     for e in current_location:
         destroy(e)
@@ -593,22 +598,22 @@ def sneak():
         player.jump_height = 1.55
 
 def stay():
-   global sneak_flag
+    global sneak_flag
 
-   ray = raycast(origin=camera.world_position, direction=Vec3(0, 1, 0), distance=1, ignore=[camera, player])
+    ray = raycast(origin=camera.world_position, direction=Vec3(0, 1, 0), distance=1, ignore=[camera, player])
 
-   if (not ray.hit):
-      player.camera_pivot.y = 2.7 - held_keys['left control']
-      player.height = 2 - held_keys['left control']
-      player.speed = speed + 2
-      sneak_flag = True
+    if not ray.hit:
+        player.camera_pivot.y = 2.7 - held_keys['left control']
+        player.height = 2 - held_keys['left control']
+        player.speed = speed + 2
+        sneak_flag = True
 
 def update():
     global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak_flag, move_window, duel, health
 
     if health <= 0 and not duel:
         player.position = Vec3(52, 2.4, -18)
-        sio.emit('kill', {'msg': 'killed'}, )
+        sio.emit('kill', {'msg': 'killed'})
         health = 100
     elif health <= 0:
         if not duel_map_spawn_point:
@@ -616,14 +621,14 @@ def update():
         else:
             player.position = Vec3(1044, 525, 1090)
 
-        sio.emit('kill', {'msg': 'killed'}, )
+        sio.emit('kill', {'msg': 'killed'})
         health = 100
 
     if tutorial:
         if not sneak_flag:
-            sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y}, )
+            sio.emit('move', {'x': player.x, 'y': player.y, 'z': player.z, 'ry': player.rotation.y})
         else:
-            sio.emit('move', {'x': player.x, 'y': player.y - 1.4, 'z': player.z, 'ry': player.rotation.y}, )
+            sio.emit('move', {'x': player.x, 'y': player.y - 1.4, 'z': player.z, 'ry': player.rotation.y})
 
 
     # move_speed = 20
