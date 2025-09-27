@@ -16,8 +16,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-# sio.connect('https://stalker-server-z2l9.onrender.com/', transports=['websocket'])
-sio.connect('http://localhost:5000/', transports=['websocket'])
+sio.connect('https://stalker-server-z2l9.onrender.com/', transports=['websocket'])
+# sio.connect('http://localhost:5000/', transports=['websocket')]
 
 other_players = {}
 tutorial = False
@@ -27,7 +27,7 @@ max_bullets = 0
 health = 100
 magazine_size = 0
 magazine = 0
-duel_map_spawn_point = 1
+duel_map_spawn_point = 0
 
 with open('settings.json', 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
@@ -464,6 +464,7 @@ def load_duelMap():
         player.position = Vec3(965, 525, 905)
     else:
         player.position = Vec3(1044, 525, 1090)
+        player.rotation.y = 90
 
     forest_model.set_shader_input("camera_pos", camera.world_position)
     forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
