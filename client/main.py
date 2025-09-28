@@ -2,11 +2,12 @@ import socketio
 import json
 from ursina import *
 from ursina import Audio
-from direct.actor.Actor import Actor
+from ursina import application
 from ursina.shaders import lit_with_shadows_shader
 from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
 from panda3d.core import loadPrcFileData
+from pathlib import Path
 
 loadPrcFileData('', '''
 icon-filename ""
@@ -16,8 +17,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
-# sio.connect('ws://localhost:5000/', transports=['websocket'])
+# sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
+sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -29,7 +30,11 @@ magazine_size = 0
 magazine = 0
 duel_map_spawn_point = 0
 
-with open('settings.json', 'r', encoding='utf-8') as f:
+
+def resource_path(relative_path):
+    return relative_path
+
+with open(resource_path('settings.json'), 'r', encoding='utf-8') as f:
     JSON_settings = json.load(f)
 
     tutorial = JSON_settings["game_settings"]["tutorial"]
@@ -49,11 +54,11 @@ def update_players(data):
     for sid, pos in players_data.items():
         if sid not in other_players:
             other_players[sid] = Entity(
-                model='assets/models/stalker.glb',
+                model=resource_path('assets/models/stalker.glb'),
                 scale=1.7
             )
             other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, 1.2), y=-3)
-            other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.9, pos['z'])
+            other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.85, pos['z'])
             other_players[sid].rotation_y = pos.get('ry', 0) + 180
 
 
@@ -62,11 +67,11 @@ def new_player(data):
     sid = data['sid']
     if sid != sio.sid and sid not in other_players:
         other_players[sid] = Entity(
-            model='assets/models/stalker.glb',
+            model=resource_path('assets/models/stalker.glb'),
             scale=1.7
             )
         other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, .7), y=-3)
-        other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
+        other_players[sid].position = Vec3(data['x'], data['y'] + 1.85, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 @sio.event()
@@ -93,7 +98,7 @@ def kill(message):
 def move(data):
     sid = data['sid']
     if sid in other_players:
-        other_players[sid].position = Vec3(data['x'], data['y'] + 1.9, data['z'])
+        other_players[sid].position = Vec3(data['x'], data['y'] + 1.85, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
 
@@ -135,47 +140,46 @@ current_location = []
 
 lit_with_shadows_fog_shader = Shader(
     language=Shader.GLSL,
-    vertex=open("assets/shaders/lit_with_fog_vertex.glsl").read(),
-    fragment=open("assets/shaders/lit_with_fog_fragment.glsl").read(),
+    vertex=open(resource_path("assets/shaders/lit_with_fog_vertex.glsl")).read(),
+    fragment=open(resource_path("assets/shaders/lit_with_fog_fragment.glsl")).read(),
 )
 
 ground = Entity(model='plane', scale=(600, 1, 600), collider='box', y=2, visible=False)
 
-shoot_sound = Audio('assets/sounds/pm_shoot.mp3', autoplay=False)
-hit_sound = Audio('assets/sounds/hit.mp3', autoplay=False)
+hit_sound = Audio(resource_path('assets/sounds/hit.wav'), autoplay=False)
 
-reload_sound = Audio('assets/sounds/reload.mp3', autoplay=False)
+reload_sound = Audio(resource_path('assets/sounds/reload.wav'), autoplay=False)
 
-empty_sound = Audio('assets/sounds/empty.mp3', autoplay=False)
+empty_sound = Audio(resource_path('assets/sounds/empty.wav'), autoplay=False)
 
-pick_up_sound = Audio('assets/sounds/pick_up.mp3', autoplay=False)
-get_key_sound = Audio('assets/sounds/get_key.mp3', autoplay=False)
+pick_up_sound = Audio(resource_path('assets/sounds/pick_up.wav'), autoplay=False)
+get_key_sound = Audio(resource_path('assets/sounds/get_key.wav'), autoplay=False)
 
-running_sound = Audio('assets/sounds/running.mp3', autoplay=False, loop=True, volume=.4)
+running_sound = Audio(resource_path('assets/sounds/running.wav'), autoplay=False, loop=True, volume=.4)
 
-ambient_rain = Audio('assets/sounds/ambient_rain.mp3', autoplay=True, loop=True, volume=.3)
+ambient_rain = Audio(resource_path('assets/sounds/ambient_rain.wav'), autoplay=True, loop=True, volume=.3)
 
 kill_tab = Text(parent=camera, scale=1, color=color.red, origin=(-0.6, -16.3), text='')
 
 def clear_kill_tab():
    kill_tab.text = ""
 
-forest_model = Entity(model='assets/models/forest.glb',y=2,shader=lit_with_shadows_fog_shader,scale=7.6, visible=forest, enabled=True)
+forest_model = Entity(model=resource_path('assets/models/forest.glb'),y=2,shader=lit_with_shadows_fog_shader,scale=7.6, visible=forest, enabled=True)
 forest_model.set_shader_input("camera_pos", camera.world_position)
 forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
 forest_model.set_shader_input("fog_density", 0.0)
-forest_collider = Entity(model='assets/models/forest.glb', collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parent=forest_model, visible=0, enabled=False)
+forest_collider = Entity(model=resource_path('assets/models/forest.glb'), collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parent=forest_model, visible=0, enabled=False)
 
-field_gate_border = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0, enabled=False)
+field_gate_border = Entity(model=resource_path('assets/models/field_gate_01.glb'), scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0, enabled=False)
 field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
 
-first_stalker_house = Entity(model='assets/models/stalker_house.glb', scale=1.1, enabled=False)
-first_stalker_house_collider = Entity(model='assets/models/stalker_house.glb', alpha=0, collider='mesh', rotation=Vec3(90, -90, 90), parent=first_stalker_house, x=-.9145,y=2.402, z=-0.265)
+first_stalker_house = Entity(model=resource_path('assets/models/stalker_house.glb'), scale=1.1, enabled=False)
+first_stalker_house_collider = Entity(model=resource_path('assets/models/stalker_house.glb'), alpha=0, collider='mesh', rotation=Vec3(90, -90, 90), parent=first_stalker_house, x=-.9145,y=2.402, z=-0.265)
 
-Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(37, 3.4, -40), rotation_y=90)
-Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(37, 2.2, 24), rotation_y=90)
+Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(37, 3.4, -40), rotation_y=90)
+Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(37, 2.2, 24), rotation_y=90)
 
-big_metal_door = Entity(model='assets/models/big_metal_door.glb', collider='box', scale=3.7, position=Vec3(46.76389, 1.9, -25.409944), enabled=False)
+big_metal_door = Entity(model=resource_path('assets/models/big_metal_door.glb'), collider='box', scale=3.7, position=Vec3(46.76389, 1.9, -25.409944), enabled=False)
 
 def settings():
     window.vsync = False
@@ -191,16 +195,13 @@ def settings():
     window.collider_counter.enabled = False
 
 def build():
-    # first_house = Entity(model='assets/models/stalker_house.glb',collider='mesh')
     if not forest:
         forest_collider.collider = None
-
-    first_stalker_house_collider.collider.visible = False
 
     first_stalker_house.position = Vec3(65, 2, -2.49)
     first_stalker_house.rotation_y = -19
 
-    field_gate_border1 = Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(44, 2.05, 42), rotation_y=83)
+    field_gate_border1 = Entity(model=resource_path('assets/models/field_gate_01.glb'), scale=1.5, position=Vec3(44, 2.05, 42), rotation_y=83)
     Entity(scale=(3.25, 5, .6), collider='box', parent=field_gate_border1, position=field_gate_border1.position, rotation_y=field_gate_border1.rotation.y)
 
 ammo_bg = Entity(
@@ -220,16 +221,18 @@ info_bar = Text(
     color=color.white
 )
 
-ammo_9mm = Entity(model='assets/models/9mm_ammo_box.glb', scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
-ammo_9mm_1 = Entity(model='assets/models/9mm_ammo_box.glb', scale=ammo_9mm.scale, position=Vec3(71, 2, -36), collider='box', enabled=True)
-ammo_9mm_2 = Entity(model='assets/models/9mm_ammo_box.glb', scale=ammo_9mm.scale, position=Vec3(112, 2, 2), collider='box', enabled=True)
+shoot_sound = Audio(resource_path('assets/sounds/pm_shoot.wav'), autoplay=False)
 
-pm = Entity(parent=scene, model='assets/models/pm.glb', origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104, enabled=False)
+ammo_9mm = Entity(model=resource_path('assets/models/9mm_ammo_box.glb'), scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
+ammo_9mm_1 = Entity(model=resource_path('assets/models/9mm_ammo_box.glb'), scale=ammo_9mm.scale, position=Vec3(71, 2, -36), collider='box', enabled=True)
+ammo_9mm_2 = Entity(model=resource_path('assets/models/9mm_ammo_box.glb'), scale=ammo_9mm.scale, position=Vec3(112, 2, 2), collider='box', enabled=True)
 
-goldEagle = Entity(parent=scene, model='assets/models/gold_deagle.glb', origin_y=-.5, collider='box', position=Vec3(70, 2.2, -52), scale=.0023, rotation=Vec3(0, 0, 0), enabled=True)
+pm = Entity(parent=scene, model=resource_path('assets/models/pm.glb'), origin_y=-.5, collider='box', position=Vec3(61, 2.6, -5.6), scale=.007, rotation_z=78, rotation_x=90, rotation_y=104, enabled=False)
+
+goldEagle = Entity(parent=scene, model=resource_path('assets/models/gold_deagle.glb'), origin_y=-.5, collider='box', position=Vec3(70, 2.2, -52), scale=.0023, rotation=Vec3(0, 0, 0), enabled=True)
 
 def get_deagle():
-    global magazine, magazine_size, speed, JSON_settings, fire_rate, recoil_time, weapon_distance
+    global magazine, magazine_size, speed, JSON_settings, fire_rate, recoil_time, weapon_distance, shoot_sound
 
     pick_up_sound.play()
 
@@ -254,9 +257,9 @@ def get_deagle():
     JSON_settings["game_settings"]["magazine"] = magazine
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
-    shoot_sound.clip = 'assets/sounds/deagle-shot-sound.mp3'
+    shoot_sound = Audio(resource_path('assets/sounds/deagle-shot-sound.wav'), autoplay=False)
 
-    with open('settings.json', 'w', encoding='utf-8') as f:
+    with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 goldEagle.on_click = get_deagle
 
@@ -285,9 +288,9 @@ elif tutorial and JSON_settings["game_settings"]["weapon"] == 'gold_deagle':
     magazine = JSON_settings["game_settings"]["magazine"]
     speed -= 0.6
     fire_rate = 0.4
-    shoot_sound.clip = 'assets/sounds/deagle-shot-sound.mp3'
+    shoot_sound = Audio(resource_path('assets/sounds/pm_shoot.wav'), autoplay=False)
 
-first_door_key = Entity(model='assets/models/door_key.glb', scale=.01, collider='box', position=Vec3(-28.65, 2, 13.), parent=scene, enabled=True)
+first_door_key = Entity(model=resource_path('assets/models/door_key.glb'), scale=.01, collider='box', position=Vec3(-28.65, 2, 13.), parent=scene, enabled=True)
 first_door_key.shader = lit_with_shadows_shader
 first_door_key.set_shader_input("emission_color", color.red*5)
 
@@ -317,7 +320,7 @@ def open_first_door():
         ammo_9mm.enabled = True
         pm.enabled = True
 
-        with open('settings.json', 'w', encoding='utf-8') as f:
+        with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
             json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
 big_metal_door.on_click = open_first_door
@@ -346,7 +349,7 @@ def get_pm():
     JSON_settings["game_settings"]["magazine"] = magazine
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
-    with open('settings.json', 'w', encoding='utf-8') as f:
+    with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
 pm.on_click = get_pm
@@ -365,7 +368,7 @@ def get_ammo():
     JSON_settings["game_settings"]["magazine"] = magazine
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
-    with open('settings.json', 'w', encoding='utf-8') as f:
+    with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
 ammo_9mm.on_click = get_ammo
@@ -381,7 +384,7 @@ def get_ammo_1():
     JSON_settings["game_settings"]["magazine"] = magazine
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
-    with open('settings.json', 'w', encoding='utf-8') as f:
+    with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
 ammo_9mm_1.on_click = get_ammo_1
@@ -397,7 +400,7 @@ def get_ammo_2():
     JSON_settings["game_settings"]["magazine"] = magazine
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
-    with open('settings.json', 'w', encoding='utf-8') as f:
+    with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
 ammo_9mm_2.on_click = get_ammo_2
@@ -460,7 +463,7 @@ def input(key):
             JSON_settings["game_settings"]["magazine"] = magazine
             JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
-            with open('settings.json', 'w', encoding='utf-8') as f:
+            with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
                 json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
         if player.weapon_name == 'pm':
@@ -523,11 +526,11 @@ def load_duelMap():
         Entity(model='cube', scale=(5, 3, 97), position=Vec3(1002, 513, 1078), collider='box', rotation_y=90, texture='brick')
     ]
     
-    ladder = Entity(model='assets/models/ladder.glb', scale=7, position=Vec3(959, 505, 934), rotation_y=90)
+    ladder = Entity(model=resource_path('assets/models/ladder.glb'), scale=7, position=Vec3(959, 505, 934), rotation_y=90)
     ladder_collider = Entity(model='cube', position=Vec3(959, 506, 934), collider='box', scale=(5, 1, 24), rotation_x=32, visible=False)
     ladder_collider2 = Entity(model='cube', position=Vec3(959, 512, 922), scale=(5, 1, 5), collider='box', visible=False)
 
-    ladder2 = Entity(model='assets/models/ladder.glb', scale=7, position=Vec3(1053, 505, 1067), rotation_y=-90)
+    ladder2 = Entity(model=resource_path('assets/models/ladder.glb'), scale=7, position=Vec3(1053, 505, 1067), rotation_y=-90)
     ladder2_collider = Entity(model='cube', position=Vec3(1053, 506, 1067), collider='box', scale=(5, 1, 24), rotation_x=32, rotation_y=-180, visible=True)
     ladder2_collider2 = Entity(model='cube', position=Vec3(1053, 512, 1079), scale=(5, 1, 5), collider='box', visible=True)
 
@@ -557,24 +560,24 @@ def load_village():
     for e in current_location:
         destroy(e)
     current_location = [
-        Entity(model='assets/models/concrete_wall_protection.glb', position=Vec3(54, 2, 14.19676), scale=1.5, collider='box', rotation_y=3, rotation_x=0.2),
-        Entity(model='assets/models/concrete_wall_protection.glb', position=Vec3(73.2, 2, 14.19676), scale=1.5, collider='box', rotation_y=-3, rotation_x=3.4),
-        Entity(model='assets/models/stalker_blockpost.glb', position=Vec3(130, 1.9, -15), rotation_y=-90, scale=43),
-        Entity(model='assets/models/sandbag_wall.glb', position=Vec3(48.9, 2, 9), scale=1.9, rotation_y=-9, collider='box'),
-        # Entity(model='assets/models/btr.glb', position=Vec3(59, 2, -44), scale=1.76, rotation_y=-101, collider='box'),
-        Entity(model='assets/models/pallet_of_boxes.glb', position=Vec3(49, 2, -41), scale=3, rotation_y=1.2, collider='box'),
-        Entity(model='assets/models/field.glb', scale=20, position=Vec3(54, 2, -51)),
-        Entity(model='assets/models/field.glb', scale=20, position=Vec3(74, 2, -51)),
-        Entity(model='assets/models/field.glb', scale=20, position=Vec3(94, 2, -51)),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(62, 2.7, -67)),
-        Entity(model='assets/models/concrete_wall_protection.glb', position=Vec3(74, 2, -49), scale=1.6, collider='box', rotation_y=43, rotation_x=3),
-        Entity(model='assets/models/acacia_tree.glb', position=Vec3(49, 2.1, -53), rotation_y=10),
-        Entity(model='assets/models/acacia_tree.glb', position=Vec3(48.7, 2.1, -46), rotation_y=30),
-        Entity(model='assets/models/acacia_tree.glb', position=Vec3(55, 2, -54), rotation_y=40),
-        Entity(model='assets/models/acacia_tree.glb', position=Vec3(60, 2.1, -52), rotation_y=70),
-        Entity(model='assets/models/acacia_tree.glb', position=Vec3(65, 1.9, -55), rotation_y=180),
-        Entity(model='assets/models/fern_grass.glb', scale=62, position=Vec3(64, 2.4, -47)),
-        Entity(model='assets/models/fern_grass.glb', scale=62, position=Vec3(67, 2.4, -52)),
+        Entity(model=resource_path('assets/models/concrete_wall_protection.glb'), position=Vec3(54, 2, 14.19676), scale=1.5, collider='box', rotation_y=3, rotation_x=0.2),
+        Entity(model=resource_path('assets/models/concrete_wall_protection.glb'), position=Vec3(73.2, 2, 14.19676), scale=1.5, collider='box', rotation_y=-3, rotation_x=3.4),
+        Entity(model=resource_path('assets/models/stalker_blockpost.glb'), position=Vec3(130, 1.9, -15), rotation_y=-90, scale=43),
+        Entity(model=resource_path('assets/models/sandbag_wall.glb'), position=Vec3(48.9, 2, 9), scale=1.9, rotation_y=-9, collider='box'),
+        # Entity(model=resource_path('assets/models/btr.glb'), position=Vec3(59, 2, -44), scale=1.76, rotation_y=-101, collider='box'),
+        Entity(model=resource_path('assets/models/pallet_of_boxes.glb'), position=Vec3(49, 2, -41), scale=3, rotation_y=1.2, collider='box'),
+        Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(54, 2, -51)),
+        Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(74, 2, -51)),
+        Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(94, 2, -51)),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(62, 2.7, -67)),
+        Entity(model=resource_path('assets/models/concrete_wall_protection.glb'), position=Vec3(74, 2, -49), scale=1.6, collider='box', rotation_y=43, rotation_x=3),
+        Entity(model=resource_path('assets/models/acacia_tree.glb'), position=Vec3(49, 2.1, -53), rotation_y=10),
+        Entity(model=resource_path('assets/models/acacia_tree.glb'), position=Vec3(48.7, 2.1, -46), rotation_y=30),
+        Entity(model=resource_path('assets/models/acacia_tree.glb'), position=Vec3(55, 2, -54), rotation_y=40),
+        Entity(model=resource_path('assets/models/acacia_tree.glb'), position=Vec3(60, 2.1, -52), rotation_y=70),
+        Entity(model=resource_path('assets/models/acacia_tree.glb'), position=Vec3(65, 1.9, -55), rotation_y=180),
+        Entity(model=resource_path('assets/models/fern_grass.glb'), scale=62, position=Vec3(64, 2.4, -47)),
+        Entity(model=resource_path('assets/models/fern_grass.glb'), scale=62, position=Vec3(67, 2.4, -52)),
     ]
 
     forest_model.enabled = True
@@ -593,20 +596,20 @@ def load_first_scene():
         destroy(e)
 
     current_location = [
-        Entity(model='assets/models/big_metal_door.glb', visible=False, collider=None, scale=3.7, position=Vec3(46.76389, 1.9, -25.409944)),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(-47, 2, 7), rotation_y=-90),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(-47, 2.1, -47), rotation_y=-90),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(-20, 3.9, -51.5), rotation_y=-180),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(30, 4, -51.5), rotation_y=-180),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(11, 2, 36)),
-        Entity(model='assets/models/wall_01.glb', collider='box', position=Vec3(-42, 2, 36)),
-        Entity(model='assets/models/box.glb', position=Vec3(50, 1.74, 46.5), scale=5, rotation_y=86.7),
-        Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(-4.8, 2, 46), rotation_y=87),
-        Entity(model='assets/models/field_gate_01.glb', scale=1.5, position=Vec3(-57, 2, -10), rotation_y=-38),
-        Entity(model='assets/models/oak_trees.glb', position=Vec3(-3, 0.2, 48), scale=4),
-        Entity(model='assets/models/oak_trees.glb', position=Vec3(4, 0.5, 50.2), scale=4.4, rotation_y=87),
-        Entity(model='assets/models/oak_trees.glb', position=Vec3(-7, 1.1, -62.4), scale=4, rotation_y=71),
-        Entity(model='assets/models/oak_trees.glb', position=Vec3(-57, 1.4, -6.1), scale=4.4, rotation_y=11)
+        Entity(model=resource_path('assets/models/big_metal_door.glb'), visible=False, collider=None, scale=3.7, position=Vec3(46.76389, 1.9, -25.409944)),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(-47, 2, 7), rotation_y=-90),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(-47, 2.1, -47), rotation_y=-90),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(-20, 3.9, -51.5), rotation_y=-180),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(30, 4, -51.5), rotation_y=-180),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(11, 2, 36)),
+        Entity(model=resource_path('assets/models/wall_01.glb'), collider='box', position=Vec3(-42, 2, 36)),
+        Entity(model=resource_path('assets/models/box.glb'), position=Vec3(50, 1.74, 46.5), scale=5, rotation_y=86.7),
+        Entity(model=resource_path('assets/models/field_gate_01.glb'), scale=1.5, position=Vec3(-4.8, 2, 46), rotation_y=87),
+        Entity(model=resource_path('assets/models/field_gate_01.glb'), scale=1.5, position=Vec3(-57, 2, -10), rotation_y=-38),
+        Entity(model=resource_path('assets/models/oak_trees.glb'), position=Vec3(-3, 0.2, 48), scale=4),
+        Entity(model=resource_path('assets/models/oak_trees.glb'), position=Vec3(4, 0.5, 50.2), scale=4.4, rotation_y=87),
+        Entity(model=resource_path('assets/models/oak_trees.glb'), position=Vec3(-7, 1.1, -62.4), scale=4, rotation_y=71),
+        Entity(model=resource_path('assets/models/oak_trees.glb'), position=Vec3(-57, 1.4, -6.1), scale=4.4, rotation_y=11)
     ]
 
     forest_model.enabled = True
@@ -710,7 +713,7 @@ def update():
 
         JSON_settings["game_settings"]["spawn_location"] = 'kordon'
 
-        with open('settings.json', 'w', encoding='utf-8') as f:
+        with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
             json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
         load_village()
@@ -720,7 +723,7 @@ def update():
 
         JSON_settings["game_settings"]["spawn_location"] = 'tutorial'
 
-        with open('settings.json', 'w', encoding='utf-8') as f:
+        with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
             json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
 
         load_first_scene()
@@ -741,21 +744,21 @@ def update():
     if held_keys['shift'] and not scope and not reloading:
         player.speed = speed + 4
         camera.fov = 145
-        running_sound.pitch = 1.6
+        if running_sound._clip is not None: running_sound.pitch = 1.6
         run = True
     elif scope and not reloading and player.weapon:
         player.speed = speed - 1.5
         camera.fov = 115
-        running_sound.pitch = .7
+        if running_sound._clip is not None: running_sound.pitch = .7
     elif not reloading:
         run = False
         player.speed = speed
         camera.fov = 130
-        running_sound.pitch = 1
+        if running_sound._clip is not None: running_sound.pitch = 1
 
     if held_keys['control'] and not sneak_flag:
         sneak()
-        running_sound.pitch = 1.45
+        if running_sound._clip is not None: running_sound.pitch = 1.45
         sneak_flag = True
     elif sneak_flag and not held_keys['control']:
         stay()
