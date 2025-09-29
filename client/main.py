@@ -6,6 +6,9 @@ from ursina import Audio
 from ursina import application
 from ursina.shaders import lit_with_shadows_shader
 from ursina.shaders import basic_lighting_shader
+from ursina.shaders import camera_vertical_blur_shader
+from ursina.shaders import fxaa_shader
+from ursina.shaders import ssao_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
 from ursina.prefabs.health_bar import HealthBar
 from panda3d.core import loadPrcFileData
@@ -82,11 +85,9 @@ def update_players(data):
                 model=resource_path('assets/models/stalker.glb'),
                 scale=1.7
             )
-            other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, 1.2), y=-3)
+            other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 1.85, 1.2))
             other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.85, pos['z'])
             other_players[sid].rotation_y = pos.get('ry', 0) + 180
-    print(data)
-
 
 @sio.event()
 def new_player(data):
@@ -501,12 +502,12 @@ def input(key):
             if current_recoil > max_recoil:
                 current_recoil = max_recoil
 
-            ray = raycast(player.position, camera.forward, distance=weapon_distance, ignore=[camera, player, forest, particles], debug=True)
-
+            ray = raycast(camera.world_position, camera.forward, distance=weapon_distance, ignore=[camera, player, *player.children, bullet], debug=True)
+            print(ray.entity.name)
             weapon_name = player.weapon_name
 
             for sid, ent in other_players.items():
-                if ray.entity == ent.colliders:
+                if ray.entity == ent.colliders and ray.entity != player:
                     hit_sound.stop()
                     hit_sound.play()
                     sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance})
@@ -825,12 +826,16 @@ if __name__ == '__main__':
     settings()
     build()
 
-    player = FirstPersonController(y=2.2, x=0, z=0, origin_y=2, height=1, collider='capsule', speed=speed, jump_height=1.55, mouse_sensivity=(60, 60))
+    player = FirstPersonController(y=2.2, x=0, z=0, origin_y=0, height=1, collider='capsule', speed=speed, jump_height=1.55, mouse_sensivity=(60, 60))
     player.camera_pivot.y = 2.7
     player.cursor.color = color.red
     player.cursor.model = 'sphere'
     player.cursor.scale = 0.003
     player.cursor.position = (0,0)
+
+    # camera.shader = camera_vertical_blur_shader
+    camera.clip_plane_near = 0.01
+    camera.shader = fxaa_shader
 
     if not tutorial: player.weapon = None
     elif tutorial and JSON_settings["game_settings"]["weapon"] == 'pm':

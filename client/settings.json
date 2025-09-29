@@ -2,13 +2,14 @@
     "user_settings": {
         "nickname": "User1",
         "fraction": "stalker",
-        "API_key": ""
+        "API_key": "",
+        "graphics": {}
     },
     "game_settings": {
         "tutorial": true,
         "spawn_location": "kordon",
         "weapon": "gold_deagle",
-        "magazine": 3,
-        "max_bullets": 97810
+        "magazine": 0,
+        "max_bullets": 97680
     }
 }
