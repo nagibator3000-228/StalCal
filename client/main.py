@@ -1,5 +1,6 @@
 import socketio
 import json
+from random import uniform
 from ursina import *
 from ursina import Audio
 from ursina import application
@@ -30,6 +31,24 @@ magazine_size = 0
 magazine = 0
 duel_map_spawn_point = 0
 
+class Particle(Entity):
+    def __init__(self, position, color):
+        super().__init__(
+            model='cube',
+            color=color,
+            position=position,
+            scale=uniform(0.04, 0.1),
+            rotation=Vec3(uniform(0,360), uniform(0,360), uniform(0,360)),
+        )
+        self.velocity = Vec3(random.randint(-20,20),random.randint(-20,20),random.randint(-20,20))
+        self.lifetime = uniform(1, 3)
+
+    def update(self):
+        if hasattr(self, 'velocity'):
+            self.position += self.velocity * time.dt
+            self.lifetime -= time.dt * 20
+            if self.lifetime <= 0:
+                destroy(self)
 
 def resource_path(relative_path):
     return relative_path
@@ -83,7 +102,7 @@ def player_left(sid):
         del other_players[sid]
 
 @sio.event()
-def kill(message):
+def kill(data):
     kill_tab.text = 'KILL'
 
     invoke(clear_kill_tab, delay=1)
@@ -93,6 +112,12 @@ def kill(message):
             player.position = Vec3(965, 520, 905)
         else:
             player.position = Vec3(1044, 525, 1090)
+
+    for i in range(100):
+        Particle(Vec3(data['position'][0], data['position'][1]+3.4, data['position'][2]), color=color.red)
+
+        print(Vec3(data['position'][0], data['position'][1]+3.4, data['position'][2]))
+
 
 @sio.event()
 def move(data):
@@ -564,7 +589,7 @@ def load_village():
         Entity(model=resource_path('assets/models/concrete_wall_protection.glb'), position=Vec3(73.2, 2, 14.19676), scale=1.5, collider='box', rotation_y=-3, rotation_x=3.4),
         Entity(model=resource_path('assets/models/stalker_blockpost.glb'), position=Vec3(130, 1.9, -15), rotation_y=-90, scale=43),
         Entity(model=resource_path('assets/models/sandbag_wall.glb'), position=Vec3(48.9, 2, 9), scale=1.9, rotation_y=-9, collider='box'),
-        # Entity(model=resource_path('assets/models/btr.glb'), position=Vec3(59, 2, -44), scale=1.76, rotation_y=-101, collider='box'),
+        Entity(model=resource_path('assets/models/btr.glb'), position=Vec3(59, 2, -44), scale=1.76, rotation_y=-101, collider='box'),
         Entity(model=resource_path('assets/models/pallet_of_boxes.glb'), position=Vec3(49, 2, -41), scale=3, rotation_y=1.2, collider='box'),
         Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(54, 2, -51)),
         Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(74, 2, -51)),
@@ -650,16 +675,16 @@ def update():
     global current_recoil, fog, village_spawn, run_sound_flag, scope, reloading, run, tutorial, health, speed, sneak_flag, move_window, duel, health
 
     if health <= 0 and not duel:
+        sio.emit('kill', { 'position': [player.x, player.y, player.z] })
         player.position = Vec3(52, 2.4, -18)
-        sio.emit('kill', {'msg': 'killed'})
         health = 100
     elif health <= 0:
+        sio.emit('kill', { 'position': [player.x, player.y, player.z] })
         if not duel_map_spawn_point:
             player.position = Vec3(965, 525, 905)
         else:
             player.position = Vec3(1044, 525, 1090)
 
-        sio.emit('kill', {'msg': 'killed'})
         health = 100
 
     if tutorial:
