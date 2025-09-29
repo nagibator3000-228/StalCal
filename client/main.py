@@ -19,8 +19,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
-# sio.connect('ws://localhost:5000/', transports=['websocket'])
+# sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
+sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -201,8 +201,8 @@ forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
 forest_model.set_shader_input("fog_density", 0.0)
 forest_collider = Entity(model=resource_path('assets/models/forest.glb'), collider='mesh', alpha=0, rotation_x=90, y=2, scale=7.6, parent=forest_model, visible=0, enabled=False)
 
-field_gate_border = Entity(model=resource_path('assets/models/field_gate_01.glb'), scale=1.5, position=Vec3(48.732334, 2.001, -26.814523), rotation_y=0, enabled=False)
-field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parent=field_gate_border, position=field_gate_border.position, rotation_y=field_gate_border.rotation.y)
+field_gate_border = Entity(model=resource_path('assets/models/field_gate_01.glb'), scale=1.5, position=Vec3(50, 2, -12), rotation_y=-0.15, enabled=False)
+field_gate_border_collider = Entity(scale=(3.25, 5, .6), collider='box', parent=field_gate_border, visible=False)
 
 first_stalker_house = Entity(model=resource_path('assets/models/stalker_house.glb'), scale=1.1, enabled=False)
 first_stalker_house_collider = Entity(model=resource_path('assets/models/stalker_house.glb'), alpha=0, collider='mesh', rotation=Vec3(90, -90, 90), parent=first_stalker_house, x=-.9145,y=2.402, z=-0.265)
@@ -480,7 +480,7 @@ def input(key):
             if current_recoil > max_recoil:
                 current_recoil = max_recoil
 
-            ray = raycast(player.position, camera.forward, distance=weapon_distance, ignore=[camera, player, forest, ground, field_gate_border_collider])
+            ray = raycast(player.position, camera.forward, distance=weapon_distance, ignore=[camera, player, forest, ground])
 
             weapon_name = player.weapon_name
 
@@ -596,7 +596,7 @@ def load_village():
         Entity(model=resource_path('assets/models/stalker_blockpost.glb'), position=Vec3(130, 1.9, -15), rotation_y=-90, scale=43),
         Entity(model=resource_path('assets/models/sandbag_wall.glb'), position=Vec3(48.9, 2, 9), scale=1.9, rotation_y=-9, collider='box'),
         Entity(model=resource_path('assets/models/btr.glb'), position=Vec3(59, 2, -44), scale=1.76, rotation_y=-101, collider='box'),
-        Entity(model=resource_path('assets/models/pallet_of_boxes.glb'), position=Vec3(49, 2, -41), scale=3, rotation_y=1.2, collider='box'),
+        Entity(model=resource_path('assets/models/pallet_of_boxes.glb'), position=Vec3(52.4, 2, -41), scale=2, rotation_y=4, collider='box'),
         Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(54, 2, -51)),
         Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(74, 2, -51)),
         Entity(model=resource_path('assets/models/field.glb'), scale=20, position=Vec3(94, 2, -51)),
