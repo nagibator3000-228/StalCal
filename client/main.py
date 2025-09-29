@@ -19,8 +19,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-# sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
-sio.connect('ws://localhost:5000/', transports=['websocket'])
+sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
+# sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -31,6 +31,9 @@ health = 100
 magazine_size = 0
 magazine = 0
 duel_map_spawn_point = 0
+particles = []
+
+current_shoot_sound = ''
 
 class Particle(Entity):
     def __init__(self, position, color):
@@ -40,6 +43,7 @@ class Particle(Entity):
             position=position,
             scale=uniform(0.04, 0.1),
             rotation=Vec3(uniform(0,360), uniform(0,360), uniform(0,360)),
+            collider=None
         )
         self.velocity = Vec3(random.randint(-20,20),random.randint(-20,20),random.randint(-20,20))
         self.lifetime = uniform(1, 3)
@@ -50,6 +54,7 @@ class Particle(Entity):
             self.lifetime -= time.dt * 20
             if self.lifetime <= 0:
                 destroy(self)
+                particles.clear()
 
 def resource_path(relative_path):
     return relative_path
@@ -112,7 +117,8 @@ def kill(data):
             player.position = Vec3(1044, 525, 1090)
 
     for i in range(100):
-        Particle(Vec3(data['position'][0], data['position'][1]+3.4, data['position'][2]), color=color.red)
+        p = Particle(Vec3(data['position'][0], data['position'][1]+3.4, data['position'][2]), color=color.red)
+        particles.append(p)
 
 
 @sio.event()
@@ -121,6 +127,17 @@ def move(data):
     if sid in other_players:
         other_players[sid].position = Vec3(data['x'], data['y'] + 1.85, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
+
+@sio.event()
+def play_shoot_sound(sound):
+    global current_shoot_sound
+
+    if sound:
+        prev_sound = current_shoot_sound
+        current_shoot_sound = sound
+        shoot_sound.stop()
+        shoot_sound.play()
+        current_shoot_sound = prev_sound
 
 
 @sio.event()
@@ -253,6 +270,7 @@ info_bar = Text(
 )
 
 shoot_sound = Audio(resource_path('assets/sounds/pm_shoot.wav'), autoplay=False)
+current_shoot_sound = 'pm'
 
 ammo_9mm = Entity(model=resource_path('assets/models/9mm_ammo_box.glb'), scale=.0008, position=Vec3(62, 2.9, -7), collider='box', enabled=False)
 ammo_9mm_1 = Entity(model=resource_path('assets/models/9mm_ammo_box.glb'), scale=ammo_9mm.scale, position=Vec3(71, 2, -36), collider='box', enabled=True)
@@ -263,7 +281,7 @@ pm = Entity(parent=scene, model=resource_path('assets/models/pm.glb'), origin_y=
 goldEagle = Entity(parent=scene, model=resource_path('assets/models/gold_deagle.glb'), origin_y=-.5, collider='box', position=Vec3(70, 2.2, -52), scale=.0023, rotation=Vec3(0, 0, 0), enabled=True)
 
 def get_deagle():
-    global magazine, magazine_size, speed, JSON_settings, fire_rate, recoil_time, weapon_distance, shoot_sound
+    global magazine, magazine_size, speed, JSON_settings, fire_rate, recoil_time, weapon_distance, shoot_sound, current_shoot_sound
 
     pick_up_sound.play()
 
@@ -289,6 +307,7 @@ def get_deagle():
     JSON_settings["game_settings"]["max_bullets"] = max_bullets
 
     shoot_sound = Audio(resource_path('assets/sounds/deagle-shot-sound.wav'), autoplay=False)
+    current_shoot_sound = 'gd'
 
     with open(resource_path('settings.json'), 'w', encoding='utf-8') as f:
         json.dump(JSON_settings, f, indent=4, ensure_ascii=False)
@@ -320,6 +339,7 @@ elif tutorial and JSON_settings["game_settings"]["weapon"] == 'gold_deagle':
     speed -= 0.6
     fire_rate = 0.4
     shoot_sound = Audio(resource_path('assets/sounds/pm_shoot.wav'), autoplay=False)
+    current_shoot_sound = 'pm'
 
 first_door_key = Entity(model=resource_path('assets/models/door_key.glb'), scale=.01, collider='box', position=Vec3(-28.65, 2, 13.), parent=scene, enabled=True)
 first_door_key.shader = lit_with_shadows_shader
@@ -463,12 +483,13 @@ def finish_reload():
 run = False
 
 def input(key):
-    global last_shot_time, current_recoil, magazine, reloading, run, JSON_settings, weapon_distance, duel
+    global last_shot_time, current_recoil, magazine, reloading, run, JSON_settings, weapon_distance, duel, current_shoot_sound
 
     now = time.time()
 
     if key == 'left mouse down' and player.weapon and magazine > 0 and not reloading:
         if now - last_shot_time >= fire_rate:
+            sio.emit('play_shoot_sound', current_shoot_sound)
             bullet = Entity(model='sphere', scale=.09, color=color.black, position=player.weapon.world_position + Vec3(.3, .5, 0))
             bullet.animate_position(bullet.position + (camera.forward * 500), curve=curve.linear, duration=.7)
             destroy(bullet, delay=2)
@@ -480,7 +501,7 @@ def input(key):
             if current_recoil > max_recoil:
                 current_recoil = max_recoil
 
-            ray = raycast(player.position, camera.forward, distance=weapon_distance, ignore=[camera, player, forest, ground])
+            ray = raycast(player.position, camera.forward, distance=weapon_distance, ignore=[camera, player, forest, particles], debug=True)
 
             weapon_name = player.weapon_name
 
@@ -490,6 +511,7 @@ def input(key):
                     hit_sound.play()
                     sio.emit('hit', {'player': sid, 'weapon': weapon_name, 'distance': ray.distance})
                     print(f'HIT {sid} with {weapon_name}')
+
 
             JSON_settings["game_settings"]["magazine"] = magazine
             JSON_settings["game_settings"]["max_bullets"] = max_bullets
