@@ -97,7 +97,7 @@ def new_player(data):
             model=resource_path('assets/models/stalker.glb'),
             scale=1.7
             )
-        other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, .7), y=-3)
+        other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 1.85, 1.2))
         other_players[sid].position = Vec3(data['x'], data['y'] + 1.85, data['z'])
         other_players[sid].rotation_y = data.get('ry', 0) + 180
 
@@ -146,6 +146,10 @@ def remove_player(sid):
     if sid in other_players:
         destroy(other_players[sid])
         del other_players[sid]
+
+@sio.event()
+def ping():
+    sio.emit('pong')
 
 @sio.event()
 def disconnect():
@@ -502,8 +506,7 @@ def input(key):
             if current_recoil > max_recoil:
                 current_recoil = max_recoil
 
-            ray = raycast(camera.world_position, camera.forward, distance=weapon_distance, ignore=[camera, player, *player.children, bullet], debug=True)
-            print(ray.entity.name)
+            ray = raycast(camera.world_position, camera.forward, distance=weapon_distance, ignore=[camera, player, *player.children, bullet])
             weapon_name = player.weapon_name
 
             for sid, ent in other_players.items():
