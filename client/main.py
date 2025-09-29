@@ -7,6 +7,7 @@ from ursina import application
 from ursina.shaders import lit_with_shadows_shader
 from ursina.shaders import basic_lighting_shader
 from ursina.prefabs.first_person_controller import FirstPersonController
+from ursina.prefabs.health_bar import HealthBar
 from panda3d.core import loadPrcFileData
 from pathlib import Path
 
@@ -18,8 +19,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-# sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
-sio.connect('ws://localhost:5000/', transports=['websocket'])
+sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
+# sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -79,6 +80,7 @@ def update_players(data):
             other_players[sid].colliders = Entity(parent=other_players[sid], collider='box', scale=(1.4, 5, 1.2), y=-3)
             other_players[sid].position = Vec3(pos['x'], pos['y'] + 1.85, pos['z'])
             other_players[sid].rotation_y = pos.get('ry', 0) + 180
+    print(data)
 
 
 @sio.event()
@@ -103,10 +105,6 @@ def player_left(sid):
 
 @sio.event()
 def kill(data):
-    kill_tab.text = 'KILL'
-
-    invoke(clear_kill_tab, delay=1)
-
     if duel:
         if not duel_map_spawn_point:
             player.position = Vec3(965, 520, 905)
@@ -115,8 +113,6 @@ def kill(data):
 
     for i in range(100):
         Particle(Vec3(data['position'][0], data['position'][1]+3.4, data['position'][2]), color=color.red)
-
-        print(Vec3(data['position'][0], data['position'][1]+3.4, data['position'][2]))
 
 
 @sio.event()
@@ -143,7 +139,6 @@ def connect():
     print("connected.")
 
 app = Ursina()
-
 
 fog = 0.02
 speed = 6
@@ -184,10 +179,21 @@ running_sound = Audio(resource_path('assets/sounds/running.wav'), autoplay=False
 
 ambient_rain = Audio(resource_path('assets/sounds/ambient_rain.wav'), autoplay=True, loop=True, volume=.3)
 
-kill_tab = Text(parent=camera, scale=1, color=color.red, origin=(-0.6, -16.3), text='')
+health_bar = HealthBar(
+    max_value=100, 
+    value=Default, 
+    roundness=0.25, 
+    bar_color=color.red.tint(-0.2), 
+    highlight_color=color.black66, 
+    animation_duration=0.1, 
+    show_text=True, 
+    show_lines=False, 
+    text_size=0.7, 
+    scale=(0.5, 0.025), 
+    origin=(-2.88, 33), 
+    name='health_bar'
+    )
 
-def clear_kill_tab():
-   kill_tab.text = ""
 
 forest_model = Entity(model=resource_path('assets/models/forest.glb'),y=2,shader=lit_with_shadows_fog_shader,scale=7.6, visible=forest, enabled=True)
 forest_model.set_shader_input("camera_pos", camera.world_position)
@@ -239,7 +245,7 @@ ammo_bg = Entity(
 
 info_bar = Text(
     parent=ammo_bg,
-    text=f"{health}\n{magazine}/{magazine_size} | {max_bullets}",
+    text=f"{magazine}/{magazine_size} | {max_bullets}",
     origin=(0,0),
     scale=6,
     position=(0,0),
@@ -705,7 +711,8 @@ def update():
 
     # window.position = (x, y)
 
-    info_bar.text = f"  {health}\n{magazine}/{magazine_size}] | {max_bullets}  "
+    info_bar.text = f"  {magazine}/{magazine_size}] | {max_bullets}  "
+    health_bar.value = health
 
     forest_model.set_shader_input("camera_pos", camera.world_position)
     forest_model.set_shader_input("fog_color", Vec4(0,0,0,1))
