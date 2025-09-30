@@ -1,15 +1,18 @@
 {
     "user_settings": {
-        "nickname": "User1",
+        "nickname": "default",
         "fraction": "stalker",
         "API_key": "",
-        "graphics": {}
+        "graphics": {
+            "render_distance": 150,
+            "krebs": true
+        }
     },
-    "game_settings": {
+    "game_settings": { // nein nein nein ☝️ nix anfassen diese sont ban jojo 
         "tutorial": true,
         "spawn_location": "kordon",
         "weapon": "gold_deagle",
         "magazine": 5,
-        "max_bullets": 97660
+        "max_bullets": 97625
     }
 }

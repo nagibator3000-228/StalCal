@@ -22,8 +22,8 @@ notify-level error
 ''')
 
 sio = socketio.Client()
-sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
-# sio.connect('ws://localhost:5000/', transports=['websocket'])
+# sio.connect('wss://stalker-server-z2l9.onrender.com', transports=['websocket'])
+sio.connect('ws://localhost:5000/', transports=['websocket'])
 
 other_players = {}
 tutorial = False
@@ -802,6 +802,7 @@ def update():
     if held_keys['shift'] and not scope and not reloading:
         player.speed = speed + 4
         camera.fov = 145
+
         if running_sound._clip is not None: running_sound.pitch = 1.6
         run = True
     elif scope and not reloading and player.weapon:
@@ -837,8 +838,16 @@ if __name__ == '__main__':
     player.cursor.position = (0,0)
 
     # camera.shader = camera_vertical_blur_shader
-    camera.clip_plane_near = 0.01
-    camera.shader = fxaa_shader
+    # if JSON_settings["user_settings"]["graphics"]["fxaa"]:
+    #     camera.shader = fxaa_shader
+
+    krebs = JSON_settings["user_settings"]["graphics"]["krebs"]
+    if krebs: camera.shader = camera_vertical_blur_shader
+
+    render_disctance = JSON_settings["user_settings"]["graphics"]["render_distance"]
+    if render_disctance < 80: render_disctance = 80
+    if render_disctance > 200: render_disctance = 200
+    camera.clip_plane_far = render_disctance
 
     if not tutorial: player.weapon = None
     elif tutorial and JSON_settings["game_settings"]["weapon"] == 'pm':
