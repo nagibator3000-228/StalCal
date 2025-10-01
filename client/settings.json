@@ -5,10 +5,10 @@
         "API_key": "",
         "graphics": {
             "render_distance": 150,
-            "krebs": true
+            "krebs": false
         }
     },
-    "game_settings": { // nein nein nein ☝️ nix anfassen diese sont ban jojo 
+    "game_settings": {
         "tutorial": true,
         "spawn_location": "kordon",
         "weapon": "gold_deagle",

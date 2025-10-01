@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\stalcal\shell\open\command]
+; 1. CMD /c: закрыть после выполнения.
+; 2. CD /D: Сменить рабочую директорию на папку игры.
+; 3. &&: Запустить python.exe ТОЛЬКО ЕСЛИ смена директории удалась.
+@="cmd /c cd /d \"%%LocalAppData%%\\StalCal\\client\" && \"C:\\Python313\\python.exe\" \"main.py\" \"%1\""
