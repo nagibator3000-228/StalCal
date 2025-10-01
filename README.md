@@ -7,4 +7,4 @@
 ## open the `connect_launcher` file and agree with all.
 ### Create an account and join the Z.O.N.E with STALCAL
 
-![logo](client/assets/icon.ico)
+![logo](client/assets/banner.png)
