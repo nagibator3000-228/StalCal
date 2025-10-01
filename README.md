@@ -1,4 +1,4 @@
-#   **STALCAL**  
+#   **STALCAL & GOVNO-LAUNCHER**  
 
 #### This is the official website for [STALCAL](https://stalker-server-z2l9.onrender.com)
 
@@ -6,5 +6,6 @@
 ## then open the `setup` file.
 ## open the `connect_launcher` file and agree with all.
 ### Create an account and join the Z.O.N.E with STALCAL
+#### you can delete the whole folder it still will be work well.
 
-![logo](client/assets/banner.png)
+![banner](client/assets/banner.png)
