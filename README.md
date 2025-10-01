@@ -9,3 +9,7 @@
 #### you can delete the whole folder it still will be work well.
 
 ![banner](client/assets/banner.png)
+![game_screenshoot1](client/assets/game_ss1%20(1).png)
+![game_screenshoot1](client/assets/game_ss1%20(2).png)
+![game_screenshoot1](client/assets/game_ss1%20(3).png)
+![game_screenshoot1](client/assets/game_ss1%20(4).png)
